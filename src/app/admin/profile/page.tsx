@@ -1,33 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
+import { apiClient } from '@/utils/api';
 import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  Shield,
-  Key,
-  Edit2,
-  Save,
-  X,
-  AlertCircle,
-  CheckCircle,
-} from 'lucide-react';
+  UserIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  KeyIcon,
+  ShieldCheckIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  CalendarIcon,
+  ClockIcon,
+  PencilIcon,
+  LockClosedIcon,
+  Cog6ToothIcon
+} from '@heroicons/react/24/outline';
+import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 interface AdminProfile {
   user_id: string;
-  username: string;
   email: string;
+  username: string;
   first_name: string;
   last_name: string;
-  phone: string | null;
+  phone?: string | null;
   is_active: boolean;
-  sso_provider: string | null;
+  sso_provider?: string | null;
   created_at: string;
   updated_at: string;
-  last_login: string | null;
+  last_login?: string | null;
   roles: Array<{
     role_id: number;
     role_name: string;
@@ -36,62 +41,48 @@ interface AdminProfile {
   }>;
 }
 
-export default function AdminProfilePage() {
+const AdminProfilePage: React.FC = () => {
   const router = useRouter();
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [passwordMode, setPasswordMode] = useState(false);
 
-  const [formData, setFormData] = useState({
+  // Edit form state
+  const [editForm, setEditForm] = useState({
     first_name: '',
     last_name: '',
-    email: '',
     phone: '',
   });
 
-  const [passwordData, setPasswordData] = useState({
+  // Password form state
+  const [passwordForm, setPasswordForm] = useState({
     current_password: '',
     new_password: '',
     confirm_password: '',
   });
 
+  // Action loading states
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   useEffect(() => {
-    fetchProfile();
+    loadProfile();
   }, []);
 
-  const fetchProfile = async () => {
+  const loadProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
-      const res = await fetch(`${API_BASE_URL}/admin/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      setLoading(true);
+      const response = await apiClient.get<{ success: boolean; data: AdminProfile }>('/admin/profile');
+      setProfile(response.data);
+      setEditForm({
+        first_name: response.data.first_name || '',
+        last_name: response.data.last_name || '',
+        phone: response.data.phone || '',
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch profile');
-      }
-
-      const data = await res.json();
-      setProfile(data.data);
-      setFormData({
-        first_name: data.data.first_name,
-        last_name: data.data.last_name,
-        email: data.data.email,
-        phone: data.data.phone || '',
-      });
-    } catch (err) {
-      setError('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
-      console.error(err);
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+      toast.error('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
     } finally {
       setLoading(false);
     }
@@ -99,445 +90,468 @@ export default function AdminProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    setUpdateLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
-      const res = await fetch(`${API_BASE_URL}/admin/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          phone: formData.phone || null,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update profile');
-      }
-
-      setSuccess(data.message || 'อัปเดตโปรไฟล์เรียบร้อยแล้ว');
-      setEditing(false);
-      fetchProfile();
-    } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรไฟล์');
+      const response = await apiClient.put<{ success: boolean; data: AdminProfile }>('/admin/profile', editForm);
+      setProfile(response.data);
+      setEditMode(false);
+      toast.success('อัปเดตข้อมูลโปรไฟล์เรียบร้อยแล้ว');
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      toast.error('ไม่สามารถอัปเดตข้อมูลได้');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
 
-    if (passwordData.new_password !== passwordData.confirm_password) {
-      setError('รหัสผ่านใหม่และรหัสผ่านยืนยันไม่ตรงกัน');
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      toast.error('รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน');
       return;
     }
 
-    if (passwordData.new_password.length < 8) {
-      setError('รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร');
+    if (passwordForm.new_password.length < 8) {
+      toast.error('รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร');
       return;
     }
+
+    setPasswordLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
-      const res = await fetch(
-        `${API_BASE_URL}/admin/profile/password`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(passwordData),
-        }
-      );
+      await apiClient.put('/admin/profile/password', {
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password,
+      });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to change password');
-      }
-
-      setSuccess(data.message || 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว');
-      setChangingPassword(false);
-      setPasswordData({
+      setPasswordMode(false);
+      setPasswordForm({
         current_password: '',
         new_password: '',
         confirm_password: '',
       });
-    } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน');
+      toast.success('เปลี่ยนรหัสผ่านเรียบร้อยแล้ว');
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      toast.error('ไม่สามารถเปลี่ยนรหัสผ่านได้');
+    } finally {
+      setPasswordLoading(false);
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getInitials = () => {
+    const firstName = profile?.first_name || profile?.username || '';
+    const lastName = profile?.last_name || '';
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || 'AD';
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-secondary-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-secondary-600 font-sarabun">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-secondary-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardBody className="p-8 text-center">
+            <XCircleIcon className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-secondary-900 font-sarabun mb-2">เกิดข้อผิดพลาด</h2>
+            <p className="text-secondary-600 font-sarabun mb-4">ไม่พบข้อมูลโปรไฟล์</p>
+            <Button onClick={loadProfile} variant="primary" className="font-sarabun">
+              ลองอีกครั้ง
+            </Button>
+          </CardBody>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">โปรไฟล์ของฉัน</h1>
-          <p className="text-gray-600 mt-2">
-            จัดการข้อมูลส่วนตัวและความปลอดภัยของบัญชี
-          </p>
-        </div>
-
-        {/* Alert Messages */}
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
-            <AlertCircle className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
-            <div className="text-red-800">{error}</div>
-            <button
-              onClick={() => setError('')}
-              className="ml-auto text-red-600 hover:text-red-800"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start">
-            <CheckCircle className="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" />
-            <div className="text-green-800">{success}</div>
-            <button
-              onClick={() => setSuccess('')}
-              className="ml-auto text-green-600 hover:text-green-800"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-
-        {/* Profile Information Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <User className="w-5 h-5 mr-2 text-blue-600" />
-              ข้อมูลส่วนตัว
-            </h2>
-            {!editing && (
-              <button
-                onClick={() => setEditing(true)}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Edit2 className="w-4 h-4 mr-2" />
-                แก้ไข
-              </button>
-            )}
-          </div>
-
-          {editing ? (
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ชื่อ
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.first_name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, first_name: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    นามสกุล
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.last_name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, last_name: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
+    <div className="px-4 sm:px-6 lg:px-8">
+      {/* Page header */}
+      <div className="mb-8">
+        <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/30">
+                <span className="text-2xl font-bold text-white">
+                  {getInitials()}
+                </span>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  อีเมล
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  เบอร์โทรศัพท์
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(false);
-                    setFormData({
-                      first_name: profile?.first_name || '',
-                      last_name: profile?.last_name || '',
-                      email: profile?.email || '',
-                      phone: profile?.phone || '',
-                    });
-                  }}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  บันทึก
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm text-gray-600">ชื่อ-นามสกุล</label>
-                  <p className="text-lg font-medium text-gray-900 mt-1">
-                    {profile?.first_name} {profile?.last_name}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">ชื่อผู้ใช้</label>
-                  <p className="text-lg font-medium text-gray-900 mt-1">
-                    {profile?.username}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex items-center">
-                  <Mail className="w-5 h-5 text-gray-400 mr-3" />
-                  <div>
-                    <label className="text-sm text-gray-600">อีเมล</label>
-                    <p className="text-gray-900">{profile?.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <Phone className="w-5 h-5 text-gray-400 mr-3" />
-                  <div>
-                    <label className="text-sm text-gray-600">เบอร์โทรศัพท์</label>
-                    <p className="text-gray-900">
-                      {profile?.phone || 'ไม่ระบุ'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
-                <div className="flex items-center">
-                  <Calendar className="w-5 h-5 text-gray-400 mr-3" />
-                  <div>
-                    <label className="text-sm text-gray-600">
-                      วันที่สร้างบัญชี
-                    </label>
-                    <p className="text-gray-900">
-                      {profile?.created_at
-                        ? new Date(profile.created_at).toLocaleDateString('th-TH', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })
-                        : '-'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <Calendar className="w-5 h-5 text-gray-400 mr-3" />
-                  <div>
-                    <label className="text-sm text-gray-600">
-                      เข้าสู่ระบบล่าสุด
-                    </label>
-                    <p className="text-gray-900">
-                      {profile?.last_login
-                        ? new Date(profile.last_login).toLocaleString('th-TH')
-                        : 'ไม่เคยเข้าสู่ระบบ'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Roles Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center mb-4">
-            <Shield className="w-5 h-5 mr-2 text-green-600" />
-            บทบาทและสิทธิ์
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {profile?.roles && profile.roles.length > 0 ? (
-              profile.roles.map((role) => (
-                <div
-                  key={role.role_id}
-                  className="px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-full"
-                >
-                  <span className="font-medium">{role.role_name}</span>
-                  {role.role_description && (
-                    <span className="text-sm text-green-600 ml-2">
-                      - {role.role_description}
-                    </span>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500">ไม่มีบทบาทที่กำหนด</p>
-            )}
-          </div>
-        </div>
-
-        {/* Change Password Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <Key className="w-5 h-5 mr-2 text-purple-600" />
-              เปลี่ยนรหัสผ่าน
-            </h2>
-            {!changingPassword && (
-              <button
-                onClick={() => setChangingPassword(true)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                เปลี่ยนรหัสผ่าน
-              </button>
-            )}
-          </div>
-
-          {changingPassword ? (
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  รหัสผ่านปัจจุบัน
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.current_password}
-                  onChange={(e) =>
-                    setPasswordData({
-                      ...passwordData,
-                      current_password: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  รหัสผ่านใหม่
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.new_password}
-                  onChange={(e) =>
-                    setPasswordData({
-                      ...passwordData,
-                      new_password: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  required
-                  minLength={8}
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร
+                <h1 className="text-2xl font-bold font-sarabun">
+                  โปรไฟล์ผู้ดูแลระบบ
+                </h1>
+                <p className="text-red-100 mt-1 font-sarabun">
+                  {profile.first_name} {profile.last_name}
                 </p>
               </div>
+            </div>
+            <div className="hidden md:flex items-center">
+              <Cog6ToothIcon className="h-12 w-12 text-red-200" />
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Personal Information */}
+          <Card className="hover:shadow-lg transition-shadow duration-200">
+            <CardHeader className="border-b border-secondary-200">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-sarabun text-secondary-900 flex items-center">
+                  <div className="inline-flex p-2 rounded-lg bg-blue-50 mr-3">
+                    <UserIcon className="h-5 w-5 text-blue-600" />
+                  </div>
+                  ข้อมูลส่วนตัว
+                </CardTitle>
+                {!editMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditMode(true)}
+                    className="font-sarabun"
+                  >
+                    <PencilIcon className="h-4 w-4 mr-1" />
+                    แก้ไข
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardBody className="p-6">
+              {editMode ? (
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-secondary-700 mb-2 font-sarabun">
+                        ชื่อ
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.first_name}
+                        onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-sarabun"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-secondary-700 mb-2 font-sarabun">
+                        นามสกุล
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.last_name}
+                        onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-sarabun"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2 font-sarabun">
+                      เบอร์โทรศัพท์
+                    </label>
+                    <input
+                      type="tel"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-sarabun"
+                      placeholder="0xx-xxx-xxxx"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={updateLoading}
+                      className="font-sarabun flex-1"
+                    >
+                      {updateLoading ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setEditMode(false);
+                        setEditForm({
+                          first_name: profile.first_name || '',
+                          last_name: profile.last_name || '',
+                          phone: profile.phone || '',
+                        });
+                      }}
+                      className="font-sarabun flex-1"
+                    >
+                      ยกเลิก
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center text-sm text-secondary-500 mb-1 font-sarabun">
+                        <UserIcon className="h-4 w-4 mr-1" />
+                        ชื่อ
+                      </div>
+                      <p className="text-secondary-900 font-medium font-sarabun">
+                        {profile.first_name || '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <div className="flex items-center text-sm text-secondary-500 mb-1 font-sarabun">
+                        <UserIcon className="h-4 w-4 mr-1" />
+                        นามสกุล
+                      </div>
+                      <p className="text-secondary-900 font-medium font-sarabun">
+                        {profile.last_name || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center text-sm text-secondary-500 mb-1 font-sarabun">
+                      <EnvelopeIcon className="h-4 w-4 mr-1" />
+                      อีเมล
+                    </div>
+                    <p className="text-secondary-900 font-medium font-sarabun">
+                      {profile.email}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center text-sm text-secondary-500 mb-1 font-sarabun">
+                      <PhoneIcon className="h-4 w-4 mr-1" />
+                      เบอร์โทรศัพท์
+                    </div>
+                    <p className="text-secondary-900 font-medium font-sarabun">
+                      {profile.phone || 'ยังไม่ได้ระบุ'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* Security */}
+          <Card className="hover:shadow-lg transition-shadow duration-200">
+            <CardHeader className="border-b border-secondary-200">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-sarabun text-secondary-900 flex items-center">
+                  <div className="inline-flex p-2 rounded-lg bg-purple-50 mr-3">
+                    <LockClosedIcon className="h-5 w-5 text-purple-600" />
+                  </div>
+                  ความปลอดภัย
+                </CardTitle>
+                {!passwordMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPasswordMode(true)}
+                    className="font-sarabun"
+                  >
+                    <KeyIcon className="h-4 w-4 mr-1" />
+                    เปลี่ยนรหัสผ่าน
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardBody className="p-6">
+              {passwordMode ? (
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2 font-sarabun">
+                      รหัสผ่านปัจจุบัน
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.current_password}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-sarabun"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2 font-sarabun">
+                      รหัสผ่านใหม่
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.new_password}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-sarabun"
+                      required
+                      minLength={8}
+                    />
+                    <p className="mt-1 text-xs text-secondary-500 font-sarabun">
+                      รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2 font-sarabun">
+                      ยืนยันรหัสผ่านใหม่
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirm_password}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-sarabun"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={passwordLoading}
+                      className="font-sarabun flex-1"
+                    >
+                      {passwordLoading ? 'กำลังเปลี่ยน...' : 'เปลี่ยนรหัสผ่าน'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setPasswordMode(false);
+                        setPasswordForm({
+                          current_password: '',
+                          new_password: '',
+                          confirm_password: '',
+                        });
+                      }}
+                      className="font-sarabun flex-1"
+                    >
+                      ยกเลิก
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="inline-flex p-4 rounded-full bg-purple-50 mb-4">
+                    <KeyIcon className="h-8 w-8 text-purple-500" />
+                  </div>
+                  <p className="text-secondary-600 font-sarabun">
+                    คลิกปุ่ม "เปลี่ยนรหัสผ่าน" เพื่อเปลี่ยนรหัสผ่านของคุณ
+                  </p>
+                  <p className="text-sm text-secondary-500 mt-2 font-sarabun">
+                    แนะนำให้เปลี่ยนรหัสผ่านเป็นประจำทุก 3 เดือน
+                  </p>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Roles Card */}
+          <Card className="hover:shadow-lg transition-shadow duration-200">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-secondary-200">
+              <CardTitle className="text-lg font-sarabun text-secondary-900 flex items-center">
+                <ShieldCheckIcon className="h-5 w-5 text-green-500 mr-2" />
+                บทบาท
+              </CardTitle>
+            </CardHeader>
+            <CardBody className="p-6">
+              <div className="space-y-2">
+                {profile.roles && profile.roles.length > 0 ? (
+                  profile.roles.map((role) => (
+                    <div
+                      key={role.role_id}
+                      className="flex items-start space-x-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg"
+                    >
+                      <CheckCircleIcon className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-green-900 font-medium font-sarabun capitalize">
+                          {role.role_name === 'admin' ? 'ผู้ดูแลระบบ' : role.role_name}
+                        </p>
+                        {role.role_description && (
+                          <p className="text-sm text-green-700 font-sarabun mt-0.5">
+                            {role.role_description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-secondary-500 text-sm font-sarabun">ไม่มีบทบาท</p>
+                  </div>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Account Info */}
+          <Card className="hover:shadow-lg transition-shadow duration-200">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-secondary-200">
+              <CardTitle className="text-lg font-sarabun text-secondary-900 flex items-center">
+                <CalendarIcon className="h-5 w-5 text-blue-500 mr-2" />
+                ข้อมูลบัญชี
+              </CardTitle>
+            </CardHeader>
+            <CardBody className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ยืนยันรหัสผ่านใหม่
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.confirm_password}
-                  onChange={(e) =>
-                    setPasswordData({
-                      ...passwordData,
-                      confirm_password: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  required
-                />
+                <div className="flex items-center text-sm text-secondary-500 mb-1 font-sarabun">
+                  <ClockIcon className="h-4 w-4 mr-1" />
+                  สร้างเมื่อ
+                </div>
+                <p className="text-secondary-900 font-medium font-sarabun text-sm">
+                  {formatDate(profile.created_at)}
+                </p>
               </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChangingPassword(false);
-                    setPasswordData({
-                      current_password: '',
-                      new_password: '',
-                      confirm_password: '',
-                    });
-                  }}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  เปลี่ยนรหัสผ่าน
-                </button>
+              <div>
+                <div className="flex items-center text-sm text-secondary-500 mb-1 font-sarabun">
+                  <ClockIcon className="h-4 w-4 mr-1" />
+                  อัปเดตล่าสุด
+                </div>
+                <p className="text-secondary-900 font-medium font-sarabun text-sm">
+                  {formatDate(profile.updated_at)}
+                </p>
               </div>
-            </form>
-          ) : (
-            <p className="text-gray-600">
-              เพื่อความปลอดภัย แนะนำให้เปลี่ยนรหัสผ่านเป็นระยะ ๆ
-            </p>
-          )}
+              <div>
+                <div className="flex items-center text-sm text-secondary-500 mb-1 font-sarabun">
+                  <UserIcon className="h-4 w-4 mr-1" />
+                  ชื่อผู้ใช้
+                </div>
+                <p className="text-secondary-900 font-medium font-sarabun text-sm">
+                  {profile.username}
+                </p>
+              </div>
+              <div className="pt-4 border-t border-secondary-200">
+                <div className="flex items-center text-sm text-secondary-500 mb-1 font-sarabun">
+                  <UserIcon className="h-4 w-4 mr-1" />
+                  User ID
+                </div>
+                <p className="text-secondary-900 font-mono text-xs break-all bg-secondary-50 px-2 py-1 rounded">
+                  {profile.user_id}
+                </p>
+              </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default AdminProfilePage;
