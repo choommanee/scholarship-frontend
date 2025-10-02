@@ -602,7 +602,7 @@ export default function AdminInterviewsPage() {
 
                         {booking.booking_status === 'confirmed' && (
                           <Button
-                            variant="info"
+                            variant="primary"
                             size="sm"
                             onClick={() => handleCheckIn(booking.id)}
                             className="w-full font-sarabun"

@@ -32,7 +32,7 @@ import {
 const ApplicationDetailPage: React.FC = () => {
   const router = useRouter();
   const params = useParams();
-  const applicationId = params.id as string;
+  const applicationId = params?.id as string;
 
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);

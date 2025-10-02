@@ -523,7 +523,7 @@ const AdminApplicationsPage: React.FC = () => {
                     อนุมัติทั้งหมด
                   </Button>
                   <Button
-                    variant="info"
+                    variant="primary"
                     size="sm"
                     onClick={() => handleBulkAction('interview')}
                     disabled={actionLoading['bulk-interview']}
@@ -832,7 +832,7 @@ const AdminApplicationsPage: React.FC = () => {
                             )}
                           </Button>
                           <Button
-                            variant="info"
+                            variant="primary"
                             size="sm"
                             onClick={() => {
                               const date = prompt('วันที่สัมภาษณ์ (YYYY-MM-DD):');

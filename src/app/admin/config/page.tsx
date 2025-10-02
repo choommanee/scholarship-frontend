@@ -7,10 +7,10 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Switch } from '@/components/ui/Switch';
-import { 
+import {
   CogIcon,
   ServerIcon,
-  DatabaseIcon,
+  CircleStackIcon,
   ShieldCheckIcon,
   BellIcon,
   EnvelopeIcon,
@@ -247,7 +247,7 @@ const SystemConfigPage: React.FC = () => {
                       disabled={testResults.database === 'testing'}
                       className="w-full font-sarabun"
                     >
-                      <DatabaseIcon className="h-4 w-4 mr-2" />
+                      <CircleStackIcon className="h-4 w-4 mr-2" />
                       {testResults.database === 'testing' ? 'กำลังทดสอบ...' : 'ทดสอบฐานข้อมูล'}
                       {testResults.database === 'success' && <CheckCircleIcon className="h-4 w-4 ml-2 text-green-600" />}
                     </Button>

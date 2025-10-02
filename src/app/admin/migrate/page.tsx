@@ -100,7 +100,7 @@ export default function MigratePage() {
             
             <div className="flex justify-center">
               <Button
-                variant="mahidol"
+                variant="thammasat"
                 size="lg"
                 className="font-sarabun"
                 onClick={handleMigration}

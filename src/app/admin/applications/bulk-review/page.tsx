@@ -305,7 +305,7 @@ export default function BulkReviewPage() {
                       </Button>
                       <Button
                         size="sm"
-                        variant={decisions[app.id]?.decision === 'interview' ? 'info' : 'outline'}
+                        variant={decisions[app.id]?.decision === 'interview' ? 'primary' : 'outline'}
                         onClick={() => updateDecision(app.id, 'decision', 'interview')}
                         className="font-sarabun"
                       >
@@ -592,7 +592,7 @@ export default function BulkReviewPage() {
                             </Button>
                             <Button
                               size="sm"
-                              variant={decisions[app.id]?.decision === 'interview' ? 'info' : 'outline'}
+                              variant={decisions[app.id]?.decision === 'interview' ? 'primary' : 'outline'}
                               onClick={() => {
                                 updateDecision(app.id, 'decision', 'interview');
                                 const date = prompt('วันที่สัมภาษณ์ (YYYY-MM-DD):');

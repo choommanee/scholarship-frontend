@@ -597,7 +597,7 @@ export default function InterviewDetailPage() {
 
                   {booking.booking_status === 'confirmed' && (
                     <Button
-                      variant="info"
+                      variant="primary"
                       onClick={handleCheckIn}
                       disabled={saving}
                       className="w-full font-sarabun"
