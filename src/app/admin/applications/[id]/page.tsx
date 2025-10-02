@@ -254,7 +254,7 @@ const ApplicationDetailPage: React.FC = () => {
                     อนุมัติ
                   </Button>
                   <Button
-                    variant="info"
+                    variant="primary"
                     onClick={() => { setReviewAction('interview'); setShowReviewModal(true); }}
                     className="font-sarabun"
                   >
