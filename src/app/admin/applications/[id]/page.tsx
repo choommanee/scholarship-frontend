@@ -297,7 +297,7 @@ const ApplicationDetailPage: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-secondary-900 font-sarabun mb-2">
-                      {application.personalInfo?.firstName || application.personalInfo?.first_name || 'ไม่ระบุ'} {application.personalInfo?.lastName || application.personalInfo?.last_name || ''}
+                      {application.personalInfo?.firstName || 'ไม่ระบุ'} {application.personalInfo?.lastName || ''}
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-sarabun">
                       <div className="flex items-center text-secondary-600">
