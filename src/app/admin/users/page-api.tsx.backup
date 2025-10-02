@@ -1,0 +1,411 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+  UserIcon,
+  PlusIcon,
+  PencilIcon,
+  ShieldCheckIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
+import { Card, CardBody } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import CreateUserModal from '@/components/admin/CreateUserModal';
+import EditUserModal from '@/components/admin/EditUserModal';
+import ManageRolesModal from '@/components/admin/ManageRolesModal';
+import { 
+  User, 
+  UserFilters, 
+  CreateUserRequest, 
+  UpdateUserRequest,
+  userService 
+} from '@/services/user.service';
+import { authService } from '@/services/auth.service';
+
+const AdminUsersPage: React.FC = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Modal states
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showRolesModal, setShowRolesModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const currentUser = authService.getUser();
+
+  useEffect(() => {
+    loadUsers();
+  }, [currentPage, searchTerm, selectedRole, selectedStatus]);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const filters: UserFilters = {
+        page: currentPage,
+        limit: 10,
+        search: searchTerm || undefined,
+        role: selectedRole || undefined,
+        is_active: selectedStatus === 'active' ? true : selectedStatus === 'inactive' ? false : undefined
+      };
+
+      const response = await userService.getUsers(filters);
+      setUsers(response.data);
+      setTotalPages(Math.ceil(response.pagination.total / response.pagination.limit));
+      setTotalUsers(response.pagination.total);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      alert('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateUser = async (userData: CreateUserRequest) => {
+    try {
+      setIsCreating(true);
+      await userService.createUser(userData);
+      await loadUsers();
+      alert('สร้างผู้ใช้ใหม่เรียบร้อยแล้ว');
+    } catch (error) {
+      console.error('Create user error:', error);
+      alert(error instanceof Error ? error.message : 'ไม่สามารถสร้างผู้ใช้ได้');
+      throw error;
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleUpdateUser = async (userId: string, userData: UpdateUserRequest) => {
+    try {
+      setIsUpdating(true);
+      await userService.updateUser(userId, userData);
+      await loadUsers();
+      alert('อัปเดตข้อมูลผู้ใช้เรียบร้อยแล้ว');
+    } catch (error) {
+      console.error('Update user error:', error);
+      alert(error instanceof Error ? error.message : 'ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้');
+      throw error;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleToggleUserStatus = async (user: User) => {
+    if (!confirm(`คุณต้องการ${user.is_active ? 'ระงับ' : 'เปิด'}การใช้งานของ ${userService.formatFullName(user)} หรือไม่?`)) {
+      return;
+    }
+
+    try {
+      if (user.is_active) {
+        await userService.deactivateUser(user.user_id);
+      } else {
+        await userService.reactivateUser(user.user_id);
+      }
+      await loadUsers();
+      alert(`${user.is_active ? 'ระงับ' : 'เปิด'}การใช้งานเรียบร้อยแล้ว`);
+    } catch (error) {
+      console.error('Toggle user status error:', error);
+      alert(error instanceof Error ? error.message : 'ไม่สามารถเปลี่ยนสถานะผู้ใช้ได้');
+    }
+  };
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleManageRoles = (user: User) => {
+    setSelectedUser(user);
+    setShowRolesModal(true);
+  };
+
+  const handleRoleUpdated = () => {
+    loadUsers();
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = (type: 'role' | 'status', value: string) => {
+    if (type === 'role') {
+      setSelectedRole(value);
+    } else {
+      setSelectedStatus(value);
+    }
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedRole('');
+    setSelectedStatus('');
+    setCurrentPage(1);
+  };
+
+  const getStatusIcon = (isActive: boolean) => {
+    return isActive ? CheckCircleIcon : XCircleIcon;
+  };
+
+  // Statistics
+  const activeUsers = users.filter(u => u.is_active).length;
+  const inactiveUsers = users.filter(u => !u.is_active).length;
+
+  if (loading && users.length === 0) {
+    return (
+      <div className="min-h-screen bg-secondary-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-secondary-600 font-sarabun">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-secondary-50 flex flex-col">
+      <Header 
+        user={{
+          name: currentUser?.firstName + ' ' + currentUser?.lastName || 'Admin',
+          role: 'ผู้ดูแลระบบ',
+          email: currentUser?.email || 'admin@mahidol.ac.th'
+        }}
+        onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+      <div className="flex flex-1 relative">
+        <Sidebar 
+          userRole="admin"
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+
+        <main className="flex-1 min-w-0 w-full lg:ml-4 pt-8">
+          <div className="px-4 sm:px-8 lg:px-8 pb-8 max-w-8xl mx-auto">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-secondary-900 font-sarabun mb-2">
+                    จัดการผู้ใช้งาน
+                  </h1>
+                  <p className="text-secondary-600 font-sarabun">
+                    จัดการบัญชีผู้ใช้งาน สิทธิ์การเข้าถึง และการตั้งค่าระบบ
+                  </p>
+                </div>
+                <Button
+                  variant="primary"
+                  onClick={() => setShowCreateModal(true)}
+                  className="font-sarabun"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  เพิ่มผู้ใช้ใหม่
+                </Button>
+              </div>
+            </div>
+
+            {/* Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <Card>
+                <CardBody className="p-6 text-center">
+                  <div className="inline-flex p-3 rounded-xl bg-blue-50 mb-4">
+                    <UserIcon className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-secondary-900 font-sarabun">{totalUsers}</p>
+                  <p className="text-sm text-secondary-600 font-sarabun">ทั้งหมด</p>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody className="p-6 text-center">
+                  <div className="inline-flex p-3 rounded-xl bg-green-50 mb-4">
+                    <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-secondary-900 font-sarabun">{activeUsers}</p>
+                  <p className="text-sm text-secondary-600 font-sarabun">ใช้งานได้</p>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody className="p-6 text-center">
+                  <div className="inline-flex p-3 rounded-xl bg-red-50 mb-4">
+                    <XCircleIcon className="h-6 w-6 text-red-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-secondary-900 font-sarabun">{inactiveUsers}</p>
+                  <p className="text-sm text-secondary-600 font-sarabun">ไม่ใช้งาน</p>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody className="p-6 text-center">
+                  <div className="inline-flex p-3 rounded-xl bg-purple-50 mb-4">
+                    <ShieldCheckIcon className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-secondary-900 font-sarabun">{users.length}</p>
+                  <p className="text-sm text-secondary-600 font-sarabun">หน้านี้</p>
+                </CardBody>
+              </Card>
+            </div>
+                                  <p className="text-secondary-500">อัปเดตล่าสุด</p>
+                                  <p>{new Date(user.updated_at).toLocaleDateString('th-TH')}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-secondary-500">ID</p>
+                                <p className="font-mono text-xs">{user.user_id}</p>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-between border-t border-secondary-200 pt-4">
+                              <div className="flex space-x-3">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleEditUser(user)}
+                                  className="font-sarabun"
+                                >
+                                  <PencilIcon className="h-4 w-4 mr-2" />
+                                  แก้ไข
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleManageRoles(user)}
+                                  className="font-sarabun"
+                                >
+                                  <ShieldCheckIcon className="h-4 w-4 mr-2" />
+                                  จัดการบทบาท
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleToggleUserStatus(user)}
+                                  className={`font-sarabun ${
+                                    user.is_active 
+                                      ? 'text-red-600 hover:text-red-700 hover:border-red-300' 
+                                      : 'text-green-600 hover:text-green-700 hover:border-green-300'
+                                  }`}
+                                >
+                                  {user.is_active ? (
+                                    <>
+                                      <XCircleIcon className="h-4 w-4 mr-2" />
+                                      ระงับการใช้งาน
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircleIcon className="h-4 w-4 mr-2" />
+                                      เปิดใช้งาน
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-8">
+                <div className="text-sm text-secondary-600 font-sarabun">
+                  แสดง {((currentPage - 1) * 10) + 1} - {Math.min(currentPage * 10, totalUsers)} จาก {totalUsers} รายการ
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    className="font-sarabun"
+                  >
+                    ก่อนหน้า
+                  </Button>
+                  
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "primary" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                        className="font-sarabun"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    className="font-sarabun"
+                  >
+                    ถัดไป
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* Modals */}
+      <CreateUserModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreateUser}
+        isLoading={isCreating}
+      />
+
+      <EditUserModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSubmit={handleUpdateUser}
+        user={selectedUser}
+        isLoading={isUpdating}
+      />
+
+      <ManageRolesModal
+        isOpen={showRolesModal}
+        onClose={() => setShowRolesModal(false)}
+        user={selectedUser}
+        onRoleUpdated={handleRoleUpdated}
+      />
+    </div>
+  );
+};
+
+export default AdminUsersPage;

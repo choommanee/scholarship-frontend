@@ -1,0 +1,415 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+  ShieldCheckIcon,
+  UserGroupIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  KeyIcon,
+  CogIcon
+} from '@heroicons/react/24/outline';
+import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { CreateRoleModal, EditRoleModal, DeleteRoleModal } from '@/components/admin/RoleModals';
+
+interface Permission {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
+interface Role {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  permissions: string[];
+  userCount: number;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export default function AdminRolesPage() {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+
+  useEffect(() => {
+    loadRoles();
+    loadPermissions();
+  }, []);
+
+  const loadRoles = async () => {
+    try {
+      setLoading(true);
+      // Mock data - ในการใช้งานจริงจะเรียก API
+      const mockRoles: Role[] = [
+        {
+          id: 'admin',
+          name: 'admin',
+          displayName: 'ผู้ดูแลระบบ',
+          description: 'มีสิทธิ์เข้าถึงและจัดการระบบทั้งหมด',
+          permissions: ['full_access', 'manage_users', 'system_settings', 'view_reports', 'system_admin'],
+          userCount: 3,
+          isSystem: true,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01'
+        },
+        {
+          id: 'officer',
+          name: 'officer',
+          displayName: 'เจ้าหน้าที่ทุนการศึกษา',
+          description: 'จัดการใบสมัคร ตรวจสอบเอกสาร และจัดการทุนการศึกษา',
+          permissions: ['manage_applications', 'review_documents', 'schedule_interviews', 'manage_scholarships'],
+          userCount: 8,
+          isSystem: true,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01'
+        },
+        {
+          id: 'interviewer',
+          name: 'interviewer',
+          displayName: 'ผู้สัมภาษณ์',
+          description: 'ดำเนินการสัมภาษณ์และประเมินผู้สมัครทุนการศึกษา',
+          permissions: ['conduct_interviews', 'submit_evaluations', 'view_applications'],
+          userCount: 15,
+          isSystem: true,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01'
+        },
+        {
+          id: 'student',
+          name: 'student',
+          displayName: 'นักศึกษา',
+          description: 'สมัครทุนการศึกษาและจัดการข้อมูลส่วนตัว',
+          permissions: ['view_scholarships', 'apply_scholarships', 'manage_documents', 'view_applications'],
+          userCount: 1250,
+          isSystem: true,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01'
+        },
+        {
+          id: 'scholarship_officer',
+          name: 'scholarship_officer',
+          displayName: 'เจ้าหน้าที่ทุนพิเศษ',
+          description: 'จัดการทุนการศึกษาประเภทพิเศษ',
+          permissions: ['manage_applications', 'review_documents', 'manage_special_scholarships'],
+          userCount: 5,
+          isSystem: false,
+          createdAt: '2024-02-15',
+          updatedAt: '2024-02-15'
+        }
+      ];
+      
+      setRoles(mockRoles);
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPermissions = async () => {
+    try {
+      // Mock permissions data
+      const mockPermissions: Permission[] = [
+        { id: 'full_access', name: 'full_access', description: 'เข้าถึงระบบทั้งหมด', category: 'system' },
+        { id: 'system_admin', name: 'system_admin', description: 'จัดการระบบ', category: 'system' },
+        { id: 'manage_users', name: 'manage_users', description: 'จัดการผู้ใช้', category: 'user' },
+        { id: 'system_settings', name: 'system_settings', description: 'ตั้งค่าระบบ', category: 'system' },
+        { id: 'view_reports', name: 'view_reports', description: 'ดูรายงาน', category: 'report' },
+        { id: 'manage_applications', name: 'manage_applications', description: 'จัดการใบสมัคร', category: 'scholarship' },
+        { id: 'review_documents', name: 'review_documents', description: 'ตรวจสอบเอกสาร', category: 'scholarship' },
+        { id: 'schedule_interviews', name: 'schedule_interviews', description: 'จัดตารางสัมภาษณ์', category: 'interview' },
+        { id: 'manage_scholarships', name: 'manage_scholarships', description: 'จัดการทุนการศึกษา', category: 'scholarship' },
+        { id: 'conduct_interviews', name: 'conduct_interviews', description: 'ดำเนินการสัมภาษณ์', category: 'interview' },
+        { id: 'submit_evaluations', name: 'submit_evaluations', description: 'ส่งผลการประเมิน', category: 'interview' },
+        { id: 'view_scholarships', name: 'view_scholarships', description: 'ดูทุนการศึกษา', category: 'scholarship' },
+        { id: 'apply_scholarships', name: 'apply_scholarships', description: 'สมัครทุนการศึกษา', category: 'scholarship' },
+        { id: 'manage_documents', name: 'manage_documents', description: 'จัดการเอกสาร', category: 'document' },
+        { id: 'view_applications', name: 'view_applications', description: 'ดูใบสมัคร', category: 'scholarship' }
+      ];
+      
+      setPermissions(mockPermissions);
+    } catch (error) {
+      console.error('Error loading permissions:', error);
+    }
+  };
+
+  const filteredRoles = roles.filter(role =>
+    role.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    role.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getPermissionsByCategory = (rolePermissions: string[]) => {
+    const categories: Record<string, Permission[]> = {};
+    
+    rolePermissions.forEach(permId => {
+      const permission = permissions.find(p => p.id === permId);
+      if (permission) {
+        if (!categories[permission.category]) {
+          categories[permission.category] = [];
+        }
+        categories[permission.category].push(permission);
+      }
+    });
+    
+    return categories;
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
+      system: 'text-red-600 bg-red-50 border-red-200',
+      user: 'text-blue-600 bg-blue-50 border-blue-200',
+      scholarship: 'text-green-600 bg-green-50 border-green-200',
+      interview: 'text-purple-600 bg-purple-50 border-purple-200',
+      document: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+      report: 'text-indigo-600 bg-indigo-50 border-indigo-200'
+    };
+    return colors[category] || 'text-gray-600 bg-gray-50 border-gray-200';
+  };
+
+  const getCategoryDisplayName = (category: string) => {
+    const names: Record<string, string> = {
+      system: 'ระบบ',
+      user: 'ผู้ใช้',
+      scholarship: 'ทุนการศึกษา',
+      interview: 'การสัมภาษณ์',
+      document: 'เอกสาร',
+      report: 'รายงาน'
+    };
+    return names[category] || category;
+  };
+
+  return (
+    <div className="px-4 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-secondary-900 font-sarabun mb-2">
+              จัดการบทบาทและสิทธิ์
+            </h1>
+            <p className="text-secondary-600 font-sarabun">
+              กำหนดบทบาทและสิทธิ์การเข้าถึงระบบสำหรับผู้ใช้
+            </p>
+          </div>
+          <Button variant="primary" className="font-sarabun" onClick={() => setShowCreateModal(true)}>
+            <PlusIcon className="h-4 w-4 mr-2" />
+            เพิ่มบทบาทใหม่
+          </Button>
+        </div>
+      </div>
+
+      {/* Search and Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <div className="lg:col-span-3">
+          <Card>
+            <CardBody className="p-6">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="ค้นหาบทบาท..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 font-sarabun"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <KeyIcon className="h-5 w-5 text-secondary-400" />
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </div>
+
+        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <CardBody className="p-6">
+            <div className="flex items-center">
+              <ShieldCheckIcon className="h-8 w-8 text-blue-600 mr-4" />
+              <div>
+                <p className="text-sm font-medium text-blue-600 font-sarabun">บทบาททั้งหมด</p>
+                <p className="text-2xl font-bold text-blue-900 font-sarabun">{roles.length}</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Roles Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i}>
+              <CardBody className="p-6">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-secondary-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-secondary-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-secondary-200 rounded w-2/3"></div>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRoles.map((role) => {
+            const permissionCategories = getPermissionsByCategory(role.permissions);
+
+            return (
+              <Card key={role.id} className="hover:shadow-lg transition-shadow duration-200">
+                      <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-secondary-200">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg font-sarabun text-secondary-900 flex items-center">
+                            <ShieldCheckIcon className="h-5 w-5 text-blue-500 mr-2" />
+                            {role.displayName}
+                          </CardTitle>
+                          {role.isSystem && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 font-sarabun">
+                              <CogIcon className="h-3 w-3 mr-1" />
+                              ระบบ
+                            </span>
+                          )}
+                        </div>
+                      </CardHeader>
+
+                      <CardBody className="p-6">
+                        <p className="text-sm text-secondary-600 font-sarabun mb-4">
+                          {role.description}
+                        </p>
+
+                        {/* User Count */}
+                        <div className="flex items-center mb-4">
+                          <UserGroupIcon className="h-4 w-4 text-secondary-400 mr-2" />
+                          <span className="text-sm text-secondary-600 font-sarabun">
+                            {role.userCount.toLocaleString()} ผู้ใช้
+                          </span>
+                        </div>
+
+                        {/* Permissions by Category */}
+                        <div className="space-y-3 mb-6">
+                          <h4 className="text-sm font-semibold text-secondary-900 font-sarabun">สิทธิ์การเข้าถึง</h4>
+                          {Object.entries(permissionCategories).map(([category, perms]) => (
+                            <div key={category}>
+                              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium font-sarabun border ${getCategoryColor(category)} mb-2`}>
+                                {getCategoryDisplayName(category)} ({perms.length})
+                              </div>
+                              <div className="ml-4 space-y-1">
+                                {perms.slice(0, 2).map((perm) => (
+                                  <div key={perm.id} className="text-xs text-secondary-500 font-sarabun flex items-center">
+                                    <CheckCircleIcon className="h-3 w-3 text-green-500 mr-1" />
+                                    {perm.description}
+                                  </div>
+                                ))}
+                                {perms.length > 2 && (
+                                  <div className="text-xs text-secondary-400 font-sarabun">
+                                    และอีก {perms.length - 2} สิทธิ์
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex justify-between">
+                          <div className="text-xs text-secondary-400 font-sarabun">
+                            อัปเดต: {new Date(role.updatedAt).toLocaleDateString('th-TH')}
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="font-sarabun"
+                              onClick={() => {
+                                setSelectedRole(role);
+                                setShowEditModal(true);
+                              }}
+                            >
+                              <PencilIcon className="h-3 w-3 mr-1" />
+                              แก้ไข
+                            </Button>
+                            {!role.isSystem && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="font-sarabun text-red-600 border-red-300 hover:bg-red-50"
+                                onClick={() => {
+                                  setSelectedRole(role);
+                                  setShowDeleteModal(true);
+                                }}
+                              >
+                                <TrashIcon className="h-3 w-3 mr-1" />
+                                ลบ
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && filteredRoles.length === 0 && (
+          <Card>
+            <CardBody className="text-center py-12">
+              <ShieldCheckIcon className="mx-auto h-12 w-12 text-secondary-400" />
+              <h3 className="mt-2 text-sm font-medium text-secondary-900 font-sarabun">ไม่พบบทบาท</h3>
+              <p className="mt-1 text-sm text-secondary-500 font-sarabun">
+                ไม่มีบทบาทที่ตรงกับเงื่อนไขการค้นหา
+              </p>
+            </CardBody>
+          </Card>
+        )}
+
+      {/* Modals */}
+      <CreateRoleModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          loadRoles();
+        }}
+        permissions={permissions}
+      />
+
+      <EditRoleModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedRole(null);
+        }}
+        onSuccess={() => {
+          loadRoles();
+        }}
+        role={selectedRole}
+        permissions={permissions}
+      />
+
+      <DeleteRoleModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedRole(null);
+        }}
+        onSuccess={() => {
+          loadRoles();
+        }}
+        role={selectedRole}
+      />
+    </div>
+  );
+}
