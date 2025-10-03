@@ -2,35 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import applicationService from '@/services/application.service';
-import PersonalInfoForm from '@/components/applications/forms/PersonalInfoForm';
-import AddressesForm from '@/components/applications/forms/AddressesForm';
-import EducationForm from '@/components/applications/forms/EducationForm';
-import FamilyForm from '@/components/applications/forms/FamilyForm';
-import FinancialForm from '@/components/applications/forms/FinancialForm';
-import ActivitiesForm from '@/components/applications/forms/ActivitiesForm';
-import type { CompleteApplicationForm } from '@/types/application';
-
-const STEPS = [
-  { id: 1, name: 'ข้อมูลส่วนตัว', component: 'personal' },
-  { id: 2, name: 'ที่อยู่', component: 'addresses' },
-  { id: 3, name: 'การศึกษา', component: 'education' },
-  { id: 4, name: 'ครอบครัว', component: 'family' },
-  { id: 5, name: 'การเงิน', component: 'financial' },
-  { id: 6, name: 'กิจกรรม', component: 'activities' },
-];
+import scholarshipService from '@/services/scholarship.service';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import MultiStepForm from '@/components/application/MultiStepForm';
 
 export default function EditApplicationPage() {
   const params = useParams();
   const router = useRouter();
   const applicationId = parseInt(params.id as string);
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<CompleteApplicationForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [scholarshipId, setScholarshipId] = useState<number | null>(null);
+  const [scholarship, setScholarship] = useState<any>(null);
 
   useEffect(() => {
+    // Get user from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
     loadApplicationData();
   }, []);
 
@@ -39,7 +35,11 @@ export default function EditApplicationPage() {
       setLoading(true);
       const response = await applicationService.getCompleteForm(applicationId);
       if (response.success && response.data) {
-        setFormData(response.data);
+        setScholarshipId(response.data.scholarship_id);
+
+        // Load scholarship details
+        const scholarshipData = await scholarshipService.getPublicScholarshipById(response.data.scholarship_id);
+        setScholarship(scholarshipData);
       }
     } catch (err) {
       console.error('Failed to load application:', err);
@@ -49,76 +49,28 @@ export default function EditApplicationPage() {
     }
   };
 
-  const handleNext = () => {
-    if (currentStep < STEPS.length) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      // Submit application
-      router.push(`/student/applications/${applicationId}`);
-    }
+  const handleApplicationComplete = () => {
+    router.push('/student/applications');
   };
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const savePersonalInfo = async (data: any) => {
-    await applicationService.savePersonalInfo(applicationId, data);
-    setFormData(prev => ({ ...prev!, personal_info: data }));
-  };
-
-  const saveAddresses = async (data: any) => {
-    await applicationService.saveAddresses(applicationId, data);
-    setFormData(prev => ({ ...prev!, addresses: data }));
-  };
-
-  const saveEducation = async (data: any) => {
-    await applicationService.saveEducation(applicationId, data);
-    setFormData(prev => ({ ...prev!, education_history: data }));
-  };
-
-  const saveFamily = async (data: any) => {
-    await applicationService.saveFamily(applicationId, data);
-    setFormData(prev => ({
-      ...prev!,
-      family_members: data.members,
-      guardians: data.guardians,
-      siblings: data.siblings,
-      living_situation: data.living_situation,
-    }));
-  };
-
-  const saveFinancial = async (data: any) => {
-    await applicationService.saveFinancial(applicationId, data);
-    setFormData(prev => ({
-      ...prev!,
-      financial_info: data.financial_info,
-      assets: data.assets,
-      scholarship_history: data.scholarship_history,
-      health_info: data.health_info,
-      funding_needs: data.funding_needs,
-    }));
-  };
-
-  const saveActivities = async (data: any) => {
-    await applicationService.saveActivities(applicationId, data);
-    setFormData(prev => ({
-      ...prev!,
-      activities: data.activities,
-      references: data.references,
-    }));
+  const handleGoBack = () => {
+    router.back();
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>กำลังโหลดข้อมูล...</p>
+      <div className="min-h-screen bg-secondary-50 flex flex-col">
+        <Header user={user} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <div className="flex flex-1 relative">
+          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userRole="student" />
+          <main className="flex-1 min-w-0 w-full lg:ml-4 pt-8 bg-gray-50">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p>กำลังโหลดข้อมูล...</p>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     );
@@ -126,134 +78,77 @@ export default function EditApplicationPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center text-red-600">
-          <p>{error}</p>
-          <button
-            onClick={() => router.back()}
-            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md"
-          >
-            ย้อนกลับ
-          </button>
+      <div className="min-h-screen bg-secondary-50 flex flex-col">
+        <Header user={user} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <div className="flex flex-1 relative">
+          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userRole="student" />
+          <main className="flex-1 min-w-0 w-full lg:ml-4 pt-8 bg-gray-50">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-red-600">
+                <p>{error}</p>
+                <button
+                  onClick={() => router.back()}
+                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md"
+                >
+                  ย้อนกลับ
+                </button>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-5xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">แก้ไขใบสมัคร</h1>
-          <p className="text-gray-600">กรอกข้อมูลให้ครบถ้วนเพื่อยื่นใบสมัครขอรับทุนการศึกษา</p>
-        </div>
-
-        {/* Stepper */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            {STEPS.map((step, index) => (
-              <div key={step.id} className="flex-1 flex items-center">
-                <div className="flex flex-col items-center flex-1">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                      step.id === currentStep
-                        ? 'bg-blue-600 text-white'
-                        : step.id < currentStep
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {step.id < currentStep ? '✓' : step.id}
-                  </div>
-                  <div className="mt-2 text-xs text-center hidden md:block">{step.name}</div>
-                </div>
-                {index < STEPS.length - 1 && (
-                  <div
-                    className={`flex-1 h-1 mx-2 ${
-                      step.id < currentStep ? 'bg-green-500' : 'bg-gray-200'
-                    }`}
-                  ></div>
-                )}
+    <div className="min-h-screen bg-secondary-50 flex flex-col">
+      <Header user={user} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      <div className="flex flex-1 relative">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userRole="student" />
+        <main className="flex-1 min-w-0 w-full lg:ml-4 pt-8 bg-gray-50">
+          {/* Header */}
+          {scholarship && (
+            <div className="max-w-7xl mx-auto px-4 mb-6">
+              <div className="flex items-center space-x-4 mb-4">
+                <button
+                  onClick={handleGoBack}
+                  className="flex items-center text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeftIcon className="h-5 w-5 mr-1" />
+                  กลับ
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Form Content */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          {currentStep === 1 && (
-            <PersonalInfoForm
-              data={formData?.personal_info}
-              onSave={savePersonalInfo}
-              onNext={handleNext}
-            />
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                  แก้ไข: {scholarship.scholarship_name}
+                </h1>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">ประเภททุน:</span>
+                    <span className="ml-2 font-medium">{scholarship.scholarship_type}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">จำนวนเงิน:</span>
+                    <span className="ml-2 font-medium">
+                      {scholarship.amount.toLocaleString()} บาท
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
-          {currentStep === 2 && (
-            <AddressesForm
-              data={formData?.addresses}
-              onSave={saveAddresses}
-              onNext={handleNext}
-              onBack={handleBack}
+          {/* Application Form */}
+          {scholarshipId && (
+            <MultiStepForm
+              scholarshipId={scholarshipId}
+              existingApplicationId={applicationId}
+              onComplete={handleApplicationComplete}
             />
           )}
-
-          {currentStep === 3 && (
-            <EducationForm
-              data={formData?.education_history}
-              onSave={saveEducation}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          )}
-
-          {currentStep === 4 && (
-            <FamilyForm
-              data={{
-                members: formData?.family_members,
-                guardians: formData?.guardians,
-                siblings: formData?.siblings,
-                living_situation: formData?.living_situation,
-              }}
-              onSave={saveFamily}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          )}
-
-          {currentStep === 5 && (
-            <FinancialForm
-              data={{
-                financial_info: formData?.financial_info,
-                assets: formData?.assets,
-                scholarship_history: formData?.scholarship_history,
-                health_info: formData?.health_info,
-                funding_needs: formData?.funding_needs,
-              }}
-              onSave={saveFinancial}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          )}
-
-          {currentStep === 6 && (
-            <ActivitiesForm
-              data={{
-                activities: formData?.activities,
-                references: formData?.references,
-              }}
-              onSave={saveActivities}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          )}
-        </div>
-
-        {/* Progress Indicator */}
-        <div className="mt-6 text-center text-sm text-gray-600">
-          ขั้นตอนที่ {currentStep} จาก {STEPS.length}
-        </div>
+        </main>
       </div>
     </div>
   );

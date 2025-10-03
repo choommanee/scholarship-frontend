@@ -89,14 +89,14 @@ const ApplicationsPage: React.FC = () => {
     { value: "rejected", label: "ไม่อนุมัติ" },
   ];
 
-  const filteredApplications = applications.filter((app) => {
+  const filteredApplications = applications?.filter((app) => {
     const matchesSearch =
       app.scholarshipName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       selectedStatus === "all" || app.status === selectedStatus;
     return matchesSearch && matchesStatus;
-  });
+  }) || [];
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -175,11 +175,11 @@ const ApplicationsPage: React.FC = () => {
   };
 
   const statistics = {
-    total: applications.length,
-    draft: applications.filter((app) => app.status === "draft").length,
-    submitted: applications.filter((app) => app.status === "submitted").length,
-    approved: applications.filter((app) => app.status === "approved").length,
-    rejected: applications.filter((app) => app.status === "rejected").length,
+    total: applications?.length || 0,
+    draft: applications?.filter((app) => app.status === "draft").length || 0,
+    submitted: applications?.filter((app) => app.status === "submitted").length || 0,
+    approved: applications?.filter((app) => app.status === "approved").length || 0,
+    rejected: applications?.filter((app) => app.status === "rejected").length || 0,
   };
 
   const handleWithdraw = async (applicationId: string) => {

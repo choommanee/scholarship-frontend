@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
+import {
   HomeIcon,
   DocumentTextIcon,
   AcademicCapIcon,
@@ -13,7 +13,10 @@ import {
   UserGroupIcon,
   DocumentCheckIcon,
   BellIcon,
-  XMarkIcon
+  XMarkIcon,
+  UserCircleIcon,
+  Cog6ToothIcon,
+  DocumentMagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 
 interface OfficerSidebarProps {
@@ -53,17 +56,23 @@ const OfficerSidebar: React.FC<OfficerSidebarProps> = ({ isOpen, onClose }) => {
       icon: CalendarDaysIcon, 
       description: 'จัดตารางและจัดการสัมภาษณ์' 
     },
-    { 
-      name: 'ตรวจสอบเอกสาร', 
-      href: '/officer/documents', 
-      icon: DocumentCheckIcon, 
-      description: 'ตรวจสอบความถูกต้องของเอกสาร' 
+    {
+      name: 'ตรวจสอบเอกสาร',
+      href: '/officer/documents',
+      icon: DocumentCheckIcon,
+      description: 'ตรวจสอบความถูกต้องของเอกสาร'
     },
-    { 
-      name: 'รายงานและสถิติ', 
-      href: '/officer/reports', 
-      icon: ChartBarIcon, 
-      description: 'รายงานการดำเนินงาน' 
+    {
+      name: 'เกณฑ์การประเมิน',
+      href: '/officer/evaluation-criteria',
+      icon: DocumentMagnifyingGlassIcon,
+      description: 'จัดการเกณฑ์การประเมินการสัมภาษณ์'
+    },
+    {
+      name: 'รายงานและสถิติ',
+      href: '/officer/reports',
+      icon: ChartBarIcon,
+      description: 'รายงานการดำเนินงาน'
     },
     { 
       name: 'จัดสรรทุน', 
@@ -71,11 +80,23 @@ const OfficerSidebar: React.FC<OfficerSidebarProps> = ({ isOpen, onClose }) => {
       icon: ClipboardDocumentListIcon, 
       description: 'จัดสรรทุนให้นักศึกษา' 
     },
-    { 
-      name: 'การแจ้งเตือน', 
-      href: '/officer/notifications', 
-      icon: BellIcon, 
-      description: 'จัดการการแจ้งเตือน' 
+    {
+      name: 'การแจ้งเตือน',
+      href: '/officer/notifications',
+      icon: BellIcon,
+      description: 'จัดการการแจ้งเตือน'
+    },
+    {
+      name: 'ข้อมูลส่วนตัว',
+      href: '/officer/profile',
+      icon: UserCircleIcon,
+      description: 'จัดการข้อมูลส่วนตัว'
+    },
+    {
+      name: 'ตั้งค่า',
+      href: '/officer/settings',
+      icon: Cog6ToothIcon,
+      description: 'ตั้งค่าระบบ'
     }
   ];
 

@@ -443,4 +443,6 @@ class InterviewService {
   }
 }
 
-export default new InterviewService(); 
+const interviewService = new InterviewService();
+export { interviewService };
+export default interviewService; 

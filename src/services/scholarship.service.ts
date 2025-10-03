@@ -158,6 +158,15 @@ class ScholarshipService {
     }
   }
 
+  async getPublicScholarshipById(id: number): Promise<Scholarship> {
+    try {
+      const response = await apiClient.get<any>(`/public/scholarships/${id}`);
+      return this.mapScholarshipFromAPI(response);
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
   async createScholarship(scholarshipData: CreateScholarshipRequest): Promise<Scholarship> {
     try {
       // Map frontend format to API format
@@ -484,4 +493,6 @@ class ScholarshipService {
   }
 }
 
-export const scholarshipService = new ScholarshipService();
+const scholarshipService = new ScholarshipService();
+export { scholarshipService };
+export default scholarshipService;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
+import {
   MagnifyingGlassIcon,
   FunnelIcon,
   EyeIcon,
@@ -15,7 +15,11 @@ import {
   CalendarDaysIcon,
   BanknotesIcon,
   ChevronDownIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  XMarkIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -47,6 +51,8 @@ export default function OfficerApplicationsPage() {
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Mock data
   const applications: Application[] = [
@@ -223,39 +229,20 @@ export default function OfficerApplicationsPage() {
   };
 
   const handleSelectApplication = (id: string) => {
-    setSelectedApplications(prev => 
-      prev.includes(id) 
+    setSelectedApplications(prev =>
+      prev.includes(id)
         ? prev.filter(appId => appId !== id)
         : [...prev, id]
     );
   };
 
-  return (
-    <div className="px-4 sm:px-6 lg:px-8 pb-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-secondary-900 font-sarabun mb-2">
-              ตรวจสอบใบสมัคร
-            </h1>
-            <p className="text-secondary-600 font-sarabun">
-              จัดการและพิจารณาใบสมัครทุนการศึกษา
-            </p>
-          </div>
-          <div className="flex space-x-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="font-sarabun"
-            >
-              <FunnelIcon className="h-4 w-4 mr-2" />
-              ตัวกรอง
-            </Button>
-          </div>
-        </div>
-      </div>
+  const handleViewDetails = (application: Application) => {
+    setSelectedApplication(application);
+    setShowDetailModal(true);
+  };
 
+  return (
+    <div>
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
@@ -514,6 +501,7 @@ export default function OfficerApplicationsPage() {
                           size="sm"
                           variant="outline"
                           className="font-sarabun"
+                          onClick={() => handleViewDetails(application)}
                         >
                           <EyeIcon className="h-4 w-4 mr-1" />
                           ดูรายละเอียด
@@ -537,6 +525,233 @@ export default function OfficerApplicationsPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* Application Detail Modal */}
+      {showDetailModal && selectedApplication && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white font-sarabun">
+                  รายละเอียดใบสมัคร
+                </h2>
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="text-white hover:text-gray-200"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              <p className="text-blue-100 font-sarabun mt-1">
+                เลขที่ใบสมัคร: {selectedApplication.id}
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Status Badge */}
+              <div className="flex items-center justify-between">
+                <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border font-sarabun ${getStatusColor(selectedApplication.status)}`}>
+                  {getStatusIcon(selectedApplication.status)}
+                  <span className="ml-2">{getStatusText(selectedApplication.status)}</span>
+                </span>
+                <span className={`text-lg font-bold font-sarabun ${getPriorityColor(selectedApplication.priority)}`}>
+                  ความสำคัญ: {selectedApplication.priority === 'high' ? 'สูง' : selectedApplication.priority === 'medium' ? 'ปานกลาง' : 'ต่ำ'}
+                </span>
+              </div>
+
+              {/* Student Information */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-gray-900 font-sarabun mb-4 flex items-center">
+                  <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  ข้อมูลนักศึกษา
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1">
+                      ชื่อ-นามสกุล
+                    </label>
+                    <p className="text-base text-gray-900 font-sarabun">{selectedApplication.studentName}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1">
+                      รหัสนักศึกษา
+                    </label>
+                    <p className="text-base text-gray-900 font-sarabun">{selectedApplication.studentId}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1 flex items-center">
+                      <EnvelopeIcon className="h-4 w-4 mr-1" />
+                      อีเมล
+                    </label>
+                    <p className="text-base text-gray-900 font-sarabun">{selectedApplication.studentEmail}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1">
+                      คณะ
+                    </label>
+                    <p className="text-base text-gray-900 font-sarabun">{selectedApplication.faculty}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1">
+                      ชั้นปี
+                    </label>
+                    <p className="text-base text-gray-900 font-sarabun">ปี {selectedApplication.year}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1">
+                      เกรดเฉลี่ย (GPA)
+                    </label>
+                    <p className="text-base font-bold text-blue-600 font-sarabun">{selectedApplication.gpa}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Scholarship Information */}
+              <div className="bg-green-50 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-gray-900 font-sarabun mb-4 flex items-center">
+                  <AcademicCapIcon className="h-5 w-5 mr-2 text-green-600" />
+                  ข้อมูลทุนการศึกษา
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1">
+                      ชื่อทุน
+                    </label>
+                    <p className="text-base font-semibold text-gray-900 font-sarabun">{selectedApplication.scholarshipName}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1 flex items-center">
+                      <BanknotesIcon className="h-4 w-4 mr-1" />
+                      จำนวนเงิน
+                    </label>
+                    <p className="text-base font-bold text-green-600 font-sarabun">
+                      {selectedApplication.scholarshipAmount.toLocaleString()} บาท
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1 flex items-center">
+                      <CalendarDaysIcon className="h-4 w-4 mr-1" />
+                      วันที่สมัคร
+                    </label>
+                    <p className="text-base text-gray-900 font-sarabun">
+                      {new Date(selectedApplication.applicationDate).toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  {selectedApplication.interviewDate && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1 flex items-center">
+                        <CalendarDaysIcon className="h-4 w-4 mr-1" />
+                        วันสัมภาษณ์
+                      </label>
+                      <p className="text-base font-semibold text-purple-600 font-sarabun">
+                        {new Date(selectedApplication.interviewDate).toLocaleDateString('th-TH', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Family & Financial Information */}
+              <div className="bg-yellow-50 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-gray-900 font-sarabun mb-4 flex items-center">
+                  <HomeIcon className="h-5 w-5 mr-2 text-yellow-600" />
+                  ข้อมูลครอบครัวและการเงิน
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1">
+                      รายได้ครอบครัวต่อเดือน
+                    </label>
+                    <p className="text-base font-bold text-yellow-700 font-sarabun">
+                      {selectedApplication.familyIncome.toLocaleString()} บาท
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 font-sarabun mb-1">
+                      เอกสารประกอบ
+                    </label>
+                    <div className="flex items-center">
+                      {selectedApplication.documentsComplete ? (
+                        <span className="text-sm text-green-600 font-sarabun flex items-center">
+                          <CheckCircleIcon className="h-5 w-5 mr-2" />
+                          เอกสารครบถ้วน
+                        </span>
+                      ) : (
+                        <span className="text-sm text-red-600 font-sarabun flex items-center">
+                          <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
+                          เอกสารไม่ครบถ้วน
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div className="bg-blue-50 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-gray-900 font-sarabun mb-3">
+                  เหตุผลในการสมัคร
+                </h3>
+                <p className="text-base text-gray-700 font-sarabun leading-relaxed">
+                  {selectedApplication.reason}
+                </p>
+              </div>
+
+              {/* Review Notes */}
+              {selectedApplication.reviewNotes && (
+                <div className="bg-red-50 rounded-lg p-6 border border-red-200">
+                  <h3 className="text-lg font-bold text-red-900 font-sarabun mb-3">
+                    หมายเหตุการพิจารณา
+                  </h3>
+                  <p className="text-base text-red-700 font-sarabun">
+                    {selectedApplication.reviewNotes}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-gray-200">
+              <div className="flex justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDetailModal(false)}
+                  className="font-sarabun"
+                >
+                  ปิด
+                </Button>
+                {selectedApplication.status === 'pending' && (
+                  <>
+                    <Button
+                      variant="primary"
+                      className="bg-red-600 hover:bg-red-700 font-sarabun"
+                    >
+                      <XCircleIcon className="h-4 w-4 mr-2" />
+                      ไม่อนุมัติ
+                    </Button>
+                    <Button
+                      variant="primary"
+                      className="bg-green-600 hover:bg-green-700 font-sarabun"
+                    >
+                      <CheckCircleIcon className="h-4 w-4 mr-2" />
+                      อนุมัติ
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

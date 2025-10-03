@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   MagnifyingGlassIcon,
@@ -12,36 +12,32 @@ import {
   CheckCircleIcon,
   EyeIcon,
   HeartIcon,
+  UserGroupIcon,
+  SparklesIcon,
+  TrophyIcon,
+  BeakerIcon,
+  GlobeAltIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
-import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
+import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
-
-interface Scholarship {
-  id: number;
-  name: string;
-  description: string;
-  amount: number;
-  type: string;
-  deadline: string;
-  status: "open" | "closing_soon" | "closed";
-  applicants: number;
-  maxApplicants: number;
-  requirements: string[];
-  provider: string;
-  academicYear: string;
-  isApplied?: boolean;
-  isFavorite?: boolean;
-}
+import { scholarshipService, Scholarship } from "@/services/scholarship.service";
+import toast from "react-hot-toast";
 
 const ScholarshipsPage: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
 
   const user = {
     name: "นางสาว สมใจ ใจดี",
@@ -49,198 +45,133 @@ const ScholarshipsPage: React.FC = () => {
     email: "somjai.j@student.mahidol.ac.th",
   };
 
-  const scholarships: Scholarship[] = [
-    {
-      id: 1,
-      name: "ทุนพัฒนาศักยภาพนักศึกษา",
-      description:
-        "ทุนการศึกษาสำหรับนักศึกษาที่มีผลการเรียนดีและต้องการพัฒนาทักษะในด้านต่างๆ มุ่งเน้นการพัฒนาความเป็นผู้นำและการทำงานเป็นทีม",
-      amount: 20000,
-      type: "development",
-      deadline: "2024-12-31",
-      status: "open",
-      applicants: 45,
-      maxApplicants: 100,
-      requirements: [
-        "เกรดเฉลีย์ ≥ 3.00",
-        "ไม่เคยได้ทุนประเภทนี้",
-        "มีกิจกรรมเสริม",
-      ],
-      provider: "คณะเศรษฐศาสตร์ มหาวิทยาลัยธรรมศาสตร์",
-      academicYear: "2567",
-      isApplied: false,
-      isFavorite: true,
-    },
-    {
-      id: 2,
-      name: "ทุนเรียนดี",
-      description:
-        "ทุนการศึกษาสำหรับนักศึกษาที่มีผลการเรียนดีเยี่ยม มุ่งเน้นการส่งเสริมความเป็นเลิศทางวิชาการ",
-      amount: 15000,
-      type: "academic",
-      deadline: "2024-12-25",
-      status: "closing_soon",
-      applicants: 78,
-      maxApplicants: 80,
-      requirements: [
-        "เกรดเฉลีย์ ≥ 3.50",
-        "นักศึกษาชั้นปีที่ 2-4",
-        "ไม่มีวิชา F",
-      ],
-      provider: "มูลนิธิเพื่อการศึกษา",
-      academicYear: "2567",
-      isApplied: true,
-      isFavorite: false,
-    },
-    {
-      id: 3,
-      name: "ทุนช่วยเหลือการศึกษา",
-      description:
-        "ทุนการศึกษาสำหรับนักศึกษาที่มีฐานะทางเศรษฐกิจยากจน เพื่อสนับสนุนค่าใช้จ่ายในการศึกษา",
-      amount: 12000,
-      type: "financial_aid",
-      deadline: "2024-12-20",
-      status: "closing_soon",
-      applicants: 120,
-      maxApplicants: 150,
-      requirements: [
-        "รายได้ครอบครัว < 30,000 บาท/เดือน",
-        "เกรดเฉลีย์ ≥ 2.50",
-        "มีเอกสารรับรองรายได้",
-      ],
-      provider: "กองทุนสวัสดิการนักศึกษา",
-      academicYear: "2567",
-      isApplied: false,
-      isFavorite: false,
-    },
-    {
-      id: 4,
-      name: "ทุนวิจัยระดับปริญญาตรี",
-      description:
-        "ทุนสนับสนุนการทำวิจัยสำหรับนักศึกษาปริญญาตรี เพื่อส่งเสริมการเรียนรู้และการค้นคว้า",
-      amount: 25000,
-      type: "research",
-      deadline: "2025-01-15",
-      status: "open",
-      applicants: 23,
-      maxApplicants: 50,
-      requirements: [
-        "นักศึกษาชั้นปีที่ 3-4",
-        "มีโครงการวิจัย",
-        "เกรดเฉลีย์ ≥ 3.25",
-      ],
-      provider: "สำนักงานคณะกรรมการวิจัยแห่งชาติ",
-      academicYear: "2567",
-      isApplied: false,
-      isFavorite: true,
-    },
-    {
-      id: 5,
-      name: "ทุนกิจกรรมนักศึกษา",
-      description:
-        "ทุนสำหรับนักศึกษาที่เข้าร่วมกิจกรรมเสริมหลักสูตรและกิจกรรมเพื่อสังคม",
-      amount: 8000,
-      type: "activity",
-      deadline: "2024-12-15",
-      status: "closed",
-      applicants: 200,
-      maxApplicants: 200,
-      requirements: [
-        "เข้าร่วมกิจกรรม ≥ 20 ชั่วโมง",
-        "มีใบรับรองจากอาจารย์ที่ปรึกษา",
-      ],
-      provider: "กองกิจการนักศึกษา",
-      academicYear: "2567",
-      isApplied: false,
-      isFavorite: false,
-    },
-    {
-      id: 6,
-      name: "ทุนความเป็นเลิศทางวิชาการ",
-      description:
-        "ทุนสำหรับนักศึกษาที่มีผลการเรียนดีเยี่ยมและมีความสามารถพิเศษ",
-      amount: 30000,
-      type: "excellence",
-      deadline: "2025-01-31",
-      status: "open",
-      applicants: 12,
-      maxApplicants: 25,
-      requirements: [
-        "เกรดเฉลีย์ ≥ 3.75",
-        "อันดับ 10% แรกของคณะ",
-        "มีผลงานพิเศษ",
-      ],
-      provider: "คณะเศรษฐศาสตร์ มหาวิทยาลัยธรรมศาสตร์",
-      academicYear: "2567",
-      isApplied: false,
-      isFavorite: false,
-    },
-  ];
+  useEffect(() => {
+    loadScholarships();
+    loadFavorites();
+  }, [page, selectedType, searchTerm]);
 
-  const scholarshipTypes = [
-    { value: "all", label: "ทุกประเภท" },
-    { value: "academic", label: "ทุนเรียนดี" },
-    { value: "financial_aid", label: "ทุนช่วยเหลือ" },
-    { value: "research", label: "ทุนวิจัย" },
-    { value: "development", label: "ทุนพัฒนาศักยภาพ" },
-    { value: "activity", label: "ทุนกิจกรรม" },
-    { value: "excellence", label: "ทุนความเป็นเลิศ" },
-  ];
+  const loadScholarships = async () => {
+    try {
+      setLoading(true);
+      const response = await scholarshipService.getPublicScholarships({
+        search: searchTerm || undefined,
+        type: selectedType !== "all" ? selectedType : undefined,
+        page,
+        limit: 10,
+      });
 
-  const statusOptions = [
-    { value: "all", label: "ทุกสถานะ" },
-    { value: "open", label: "เปิดรับสมัคร" },
-    { value: "closing_soon", label: "ใกล้ปิดรับสมัคร" },
-    { value: "closed", label: "ปิดรับสมัครแล้ว" },
-  ];
+      const transformedScholarships = (response.scholarships || []).map((s: any) => {
+        const now = new Date();
+        const startDate = new Date(s.application_start_date);
+        const endDate = new Date(s.application_end_date);
+        const isOpen = now >= startDate && now <= endDate && s.is_active;
 
-  const filteredScholarships = scholarships.filter((scholarship) => {
-    const matchesSearch =
-      scholarship.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      scholarship.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType =
-      selectedType === "all" || scholarship.type === selectedType;
-    const matchesStatus =
-      selectedStatus === "all" || scholarship.status === selectedStatus;
-    return matchesSearch && matchesType && matchesStatus;
-  });
+        return {
+          id: s.scholarship_id,
+          name: s.scholarship_name,
+          description: s.source?.description || "ไม่มีคำอธิบาย",
+          amount: s.amount,
+          type: s.scholarship_type,
+          deadline: s.application_end_date,
+          status: isOpen ? "open" : "closed",
+          requirements: [],
+          applicants: s.total_quota - s.available_quota,
+          maxApplicants: s.total_quota,
+          isApplied: false,
+          provider: s.source?.source_name || "ไม่ระบุ",
+          scholarship_id: s.scholarship_id,
+          scholarship_name: s.scholarship_name,
+          scholarship_type: s.scholarship_type,
+          total_quota: s.total_quota,
+          available_quota: s.available_quota,
+          application_start_date: s.application_start_date,
+          application_end_date: s.application_end_date,
+          eligibility_criteria: s.eligibility_criteria,
+          required_documents: s.required_documents,
+          interview_required: s.interview_required,
+          is_active: s.is_active,
+          source: s.source,
+        };
+      });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "open":
-        return "bg-green-100 text-green-800";
-      case "closing_soon":
-        return "bg-yellow-100 text-yellow-800";
-      case "closed":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+      setScholarships(transformedScholarships);
+      setTotalPages(Math.ceil((response.total || 0) / 10));
+    } catch (error: any) {
+      console.error("Error loading scholarships:", error);
+      toast.error(error.message || "ไม่สามารถโหลดข้อมูลทุนการศึกษาได้");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "open":
-        return "เปิดรับสมัคร";
-      case "closing_soon":
-        return "ใกล้ปิดรับสมัคร";
-      case "closed":
-        return "ปิดรับสมัครแล้ว";
-      default:
-        return "ไม่ทราบสถานะ";
+  const loadFavorites = () => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("scholarship_favorites");
+      if (saved) {
+        setFavorites(new Set(JSON.parse(saved)));
+      }
     }
+  };
+
+  const toggleFavorite = (scholarshipId: number) => {
+    const newFavorites = new Set(favorites);
+    if (newFavorites.has(scholarshipId)) {
+      newFavorites.delete(scholarshipId);
+      toast.success("ลบออกจากรายการโปรดแล้ว");
+    } else {
+      newFavorites.add(scholarshipId);
+      toast.success("เพิ่มในรายการโปรดแล้ว");
+    }
+    setFavorites(newFavorites);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("scholarship_favorites", JSON.stringify(Array.from(newFavorites)));
+    }
+  };
+
+  const getTypeGradient = (type: string) => {
+    const gradients: { [key: string]: string } = {
+      academic_excellence: "from-blue-500 to-indigo-600",
+      financial_aid: "from-green-500 to-emerald-600",
+      research: "from-purple-500 to-violet-600",
+      special_talent: "from-orange-500 to-amber-600",
+      athlete: "from-red-500 to-rose-600",
+      disability_support: "from-cyan-500 to-teal-600",
+      moral_character: "from-pink-500 to-fuchsia-600",
+      innovation: "from-yellow-500 to-orange-600",
+      exchange_program: "from-indigo-500 to-blue-600",
+      default: "from-gray-500 to-slate-600",
+    };
+    return gradients[type] || gradients.default;
   };
 
   const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "academic":
-      case "excellence":
-        return AcademicCapIcon;
-      case "research":
-        return ClockIcon;
-      default:
-        return BanknotesIcon;
-    }
+    const icons: { [key: string]: any } = {
+      academic_excellence: AcademicCapIcon,
+      financial_aid: BanknotesIcon,
+      research: BeakerIcon,
+      special_talent: SparklesIcon,
+      athlete: TrophyIcon,
+      disability_support: ShieldCheckIcon,
+      moral_character: CheckCircleIcon,
+      innovation: SparklesIcon,
+      exchange_program: GlobeAltIcon,
+    };
+    return icons[type] || AcademicCapIcon;
+  };
+
+  const getTypeName = (type: string) => {
+    const names: { [key: string]: string } = {
+      academic_excellence: "ทุนส่งเสริมความเป็นเลิศ",
+      financial_aid: "ทุนช่วยเหลือทางการเงิน",
+      research: "ทุนวิจัย",
+      special_talent: "ทุนพัฒนาทักษะพิเศษ",
+      athlete: "ทุนนักกีฬา",
+      disability_support: "ทุนสนับสนุนผู้พิการ",
+      moral_character: "ทุนคุณธรรม",
+      innovation: "ทุนนวัตกรรม",
+      exchange_program: "ทุนแลกเปลี่ยน",
+    };
+    return names[type] || "ทุนการศึกษา";
   };
 
   const getDaysLeft = (deadline: string) => {
@@ -251,381 +182,363 @@ const ScholarshipsPage: React.FC = () => {
     return diffDays;
   };
 
+  const filteredScholarships = scholarships.filter((scholarship) => {
+    const matchesSearch = scholarship.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
   return (
     <div className="min-h-screen bg-secondary-50 flex flex-col">
-      <Header user={user} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Header
+        user={user}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+      />
       <div className="flex flex-1 relative">
         <Sidebar
-          userRole="student"
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
+          userRole="student"
         />
-
-        <main className="flex-1 min-w-0 w-full lg:ml-4 pt-8">
-          <div className="px-4 sm:px-8 lg:px-8 pb-8 max-w-8xl mx-auto">
-            {/* Header */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-secondary-900 font-sarabun mb-2">
-                ทุนการศึกษา
-              </h1>
-              <p className="text-secondary-600 font-sarabun">
-                ค้นหาและสมัครทุนการศึกษาที่เหมาะสมกับคุณ
-              </p>
+        <main className="flex-1 min-w-0 w-full lg:ml-4 pt-8 bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+          {/* Hero Section */}
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-8 text-white shadow-xl">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <AcademicCapIcon className="h-8 w-8" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold font-sarabun">
+                    ทุนการศึกษา
+                  </h1>
+                  <p className="text-blue-100 font-sarabun mt-1">
+                    ค้นหาทุนการศึกษาที่เหมาะกับคุณ
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                  <p className="text-sm text-blue-100">ทุนทั้งหมด</p>
+                  <p className="text-2xl font-bold">{scholarships.length} ทุน</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                  <p className="text-sm text-blue-100">เปิดรับสมัคร</p>
+                  <p className="text-2xl font-bold">
+                    {scholarships.filter((s) => s.status === "open").length} ทุน
+                  </p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                  <p className="text-sm text-blue-100">วันนี้</p>
+                  <p className="text-2xl font-bold">
+                    {new Date().toLocaleDateString("th-TH", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+              </div>
             </div>
+          </div>
 
-            {/* Search and filters */}
-            <Card className="mb-8">
+          {/* Search and Filter */}
+          <div className="mb-6">
+            <Card className="shadow-lg">
               <CardBody className="p-6">
-                <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1">
-                    <Input
-                      type="text"
-                      placeholder="ค้นหาทุนการศึกษา..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      leftIcon={<MagnifyingGlassIcon className="h-5 w-5" />}
-                    />
+                    <div className="relative">
+                      <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Input
+                        type="text"
+                        placeholder="ค้นหาทุนการศึกษา..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-12 py-3 text-base"
+                      />
+                    </div>
                   </div>
                   <Button
-                    variant="outline"
+                    variant={showFilters ? "primary" : "outline"}
                     onClick={() => setShowFilters(!showFilters)}
-                    className="font-sarabun"
+                    className="flex items-center space-x-2"
                   >
-                    <FunnelIcon className="h-4 w-4 mr-2" />
-                    ตัวกรอง
+                    <FunnelIcon className="h-5 w-5" />
+                    <span>ตัวกรอง</span>
                   </Button>
                 </div>
 
                 {showFilters && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-secondary-200">
-                    <div>
-                      <label className="block text-sm font-medium text-secondary-700 font-sarabun mb-2">
-                        ประเภททุน
-                      </label>
-                      <select
-                        value={selectedType}
-                        onChange={(e) => setSelectedType(e.target.value)}
-                        className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-sarabun"
-                      >
-                        {scholarshipTypes.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-secondary-700 font-sarabun mb-2">
-                        สถานะ
-                      </label>
-                      <select
-                        value={selectedStatus}
-                        onChange={(e) => setSelectedStatus(e.target.value)}
-                        className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-sarabun"
-                      >
-                        {statusOptions.map((status) => (
-                          <option key={status.value} value={status.value}>
-                            {status.label}
-                          </option>
-                        ))}
-                      </select>
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { value: "all", label: "ทั้งหมด" },
+                        { value: "academic_excellence", label: "ความเป็นเลิศ" },
+                        { value: "financial_aid", label: "ช่วยเหลือการเงิน" },
+                        { value: "research", label: "วิจัย" },
+                        { value: "athlete", label: "นักกีฬา" },
+                        { value: "innovation", label: "นวัตกรรม" },
+                      ].map((type) => (
+                        <button
+                          key={type.value}
+                          onClick={() => setSelectedType(type.value)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            selectedType === type.value
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
               </CardBody>
             </Card>
+          </div>
 
-            {/* Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card>
-                <CardBody className="p-6 text-center">
-                  <div className="inline-flex p-3 rounded-xl bg-blue-50 mb-4">
-                    <AcademicCapIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-secondary-900 font-sarabun">
-                    {scholarships.length}
-                  </p>
-                  <p className="text-sm text-secondary-600 font-sarabun">
-                    ทุนทั้งหมด
-                  </p>
-                </CardBody>
-              </Card>
-              <Card>
-                <CardBody className="p-6 text-center">
-                  <div className="inline-flex p-3 rounded-xl bg-green-50 mb-4">
-                    <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-secondary-900 font-sarabun">
-                    {scholarships.filter((s) => s.status === "open").length}
-                  </p>
-                  <p className="text-sm text-secondary-600 font-sarabun">
-                    เปิดรับสมัคร
-                  </p>
-                </CardBody>
-              </Card>
-              <Card>
-                <CardBody className="p-6 text-center">
-                  <div className="inline-flex p-3 rounded-xl bg-yellow-50 mb-4">
-                    <ClockIcon className="h-6 w-6 text-yellow-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-secondary-900 font-sarabun">
-                    {
-                      scholarships.filter((s) => s.status === "closing_soon")
-                        .length
-                    }
-                  </p>
-                  <p className="text-sm text-secondary-600 font-sarabun">
-                    ใกล้ปิดรับสมัคร
-                  </p>
-                </CardBody>
-              </Card>
-              <Card>
-                <CardBody className="p-6 text-center">
-                  <div className="inline-flex p-3 rounded-xl bg-purple-50 mb-4">
-                    <HeartIcon className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-secondary-900 font-sarabun">
-                    {scholarships.filter((s) => s.isFavorite).length}
-                  </p>
-                  <p className="text-sm text-secondary-600 font-sarabun">
-                    ทุนที่สนใจ
-                  </p>
-                </CardBody>
-              </Card>
+          {/* Scholarships Grid */}
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+              <p className="mt-4 text-gray-600">กำลังโหลด...</p>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {filteredScholarships.map((scholarship) => {
+                const TypeIcon = getTypeIcon(scholarship.type);
+                const daysLeft = getDaysLeft(scholarship.deadline);
+                const isFavorite = favorites.has(scholarship.id);
+                const progress =
+                  (scholarship.applicants / scholarship.maxApplicants) * 100;
 
-            {/* Scholarships list */}
-            <div className="space-y-6">
-              {filteredScholarships.length === 0 ? (
-                <Card>
-                  <CardBody className="p-12 text-center">
-                    <div className="inline-flex p-4 rounded-full bg-secondary-100 mb-4">
-                      <AcademicCapIcon className="h-8 w-8 text-secondary-400" />
-                    </div>
-                    <h3 className="text-lg font-medium text-secondary-900 font-sarabun mb-2">
-                      ไม่พบทุนการศึกษา
-                    </h3>
-                    <p className="text-secondary-600 font-sarabun">
-                      ลองเปลี่ยนคำค้นหาหรือตัวกรองเพื่อดูทุนการศึกษาอื่นๆ
-                    </p>
-                  </CardBody>
-                </Card>
-              ) : (
-                filteredScholarships.map((scholarship) => {
-                  const TypeIcon = getTypeIcon(scholarship.type);
-                  const daysLeft = getDaysLeft(scholarship.deadline);
+                return (
+                  <Card
+                    key={scholarship.id}
+                    className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+                  >
+                    {/* Gradient Header */}
+                    <div
+                      className={`h-2 bg-gradient-to-r ${getTypeGradient(
+                        scholarship.type
+                      )}`}
+                    ></div>
 
-                  return (
-                    <Card
-                      key={scholarship.id}
-                      className="hover:shadow-lg transition-shadow duration-200"
-                    >
-                      <CardBody className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-start space-x-4 flex-1">
-                            <div className="inline-flex p-3 rounded-xl bg-blue-50">
-                              <TypeIcon className="h-6 w-6 text-blue-600" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <h3 className="text-xl font-bold text-secondary-900 font-sarabun">
-                                  {scholarship.name}
-                                </h3>
-                                <span
-                                  className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                                    scholarship.status
-                                  )}`}
-                                >
-                                  {getStatusText(scholarship.status)}
-                                </span>
-                                {scholarship.isApplied && (
-                                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-600">
-                                    สมัครแล้ว
-                                  </span>
-                                )}
-                                {scholarship.isFavorite && (
-                                  <HeartIcon className="h-5 w-5 text-red-500 fill-current" />
-                                )}
-                              </div>
-                              <p className="text-secondary-600 font-sarabun mb-4">
-                                {scholarship.description}
-                              </p>
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <p className="text-secondary-500 font-sarabun">
-                                    จำนวนเงิน
-                                  </p>
-                                  <p className="font-semibold text-green-600">
-                                    {scholarship.amount.toLocaleString()} บาท
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-secondary-500 font-sarabun">
-                                    ผู้สนับสนุน
-                                  </p>
-                                  <p className="font-medium text-secondary-900 font-sarabun">
-                                    {scholarship.provider}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-secondary-500 font-sarabun">
-                                    ผู้สมัคร
-                                  </p>
-                                  <p className="font-medium text-secondary-900">
-                                    {scholarship.applicants}/
-                                    {scholarship.maxApplicants} คน
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-secondary-500 font-sarabun">
-                                    กำหนดปิดรับสมัคร
-                                  </p>
-                                  <div className="flex items-center space-x-1">
-                                    <CalendarDaysIcon className="h-4 w-4 text-secondary-400" />
-                                    <p className="font-medium text-secondary-900">
-                                      {new Date(
-                                        scholarship.deadline
-                                      ).toLocaleDateString("th-TH")}
-                                    </p>
-                                  </div>
-                                  {daysLeft > 0 &&
-                                    scholarship.status !== "closed" && (
-                                      <p
-                                        className={`text-xs ${
-                                          daysLeft <= 7
-                                            ? "text-red-600"
-                                            : "text-green-600"
-                                        }`}
-                                      >
-                                        เหลือ {daysLeft} วัน
-                                      </p>
-                                    )}
-                                </div>
-                              </div>
-                            </div>
+                    <CardBody className="p-6">
+                      {/* Header with Icon and Badge */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-4 flex-1">
+                          <div
+                            className={`p-4 rounded-2xl bg-gradient-to-br ${getTypeGradient(
+                              scholarship.type
+                            )} shadow-lg`}
+                          >
+                            <TypeIcon className="h-8 w-8 text-white" />
                           </div>
-                        </div>
-
-                        {/* Requirements */}
-                        <div className="mb-4">
-                          <p className="text-sm font-medium text-secondary-700 font-sarabun mb-2">
-                            คุณสมบัติผู้สมัคร:
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {scholarship.requirements.map((req, index) => (
-                              <span
-                                key={index}
-                                className="text-xs px-2 py-1 bg-secondary-100 text-secondary-700 rounded-full"
-                              >
-                                {req}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                                {getTypeName(scholarship.type)}
                               </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Progress bar */}
-                        <div className="mb-4">
-                          <div className="flex justify-between text-sm text-secondary-600 mb-1">
-                            <span>ความคืบหน้าการสมัคร</span>
-                            <span>
-                              {Math.round(
-                                (scholarship.applicants /
-                                  scholarship.maxApplicants) *
-                                  100
+                              {scholarship.status === "open" && (
+                                <span className="text-xs font-bold text-green-700 bg-green-100 px-3 py-1 rounded-full flex items-center">
+                                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                                  เปิดรับสมัคร
+                                </span>
                               )}
-                              %
-                            </span>
-                          </div>
-                          <div className="w-full bg-secondary-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                              style={{
-                                width: `${
-                                  (scholarship.applicants /
-                                    scholarship.maxApplicants) *
-                                  100
-                                }%`,
-                              }}
-                            ></div>
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 font-sarabun group-hover:text-blue-600 transition-colors">
+                              {scholarship.name}
+                            </h3>
                           </div>
                         </div>
+                        <button
+                          onClick={() => toggleFavorite(scholarship.id)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          {isFavorite ? (
+                            <HeartSolidIcon className="h-6 w-6 text-red-500" />
+                          ) : (
+                            <HeartIcon className="h-6 w-6 text-gray-400 hover:text-red-500" />
+                          )}
+                        </button>
+                      </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex space-x-3">
+                      {/* Description */}
+                      <p className="text-gray-600 mb-6 line-clamp-2">
+                        {scholarship.description}
+                      </p>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        {/* Amount */}
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <BanknotesIcon className="h-5 w-5 text-green-600" />
+                            <p className="text-xs text-green-700 font-medium">
+                              จำนวนเงิน
+                            </p>
+                          </div>
+                          <p className="text-2xl font-bold text-green-600">
+                            {scholarship.amount.toLocaleString()}
+                            <span className="text-sm font-normal ml-1">บาท</span>
+                          </p>
+                        </div>
+
+                        {/* Deadline */}
+                        <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <ClockIcon className="h-5 w-5 text-orange-600" />
+                            <p className="text-xs text-orange-700 font-medium">
+                              เหลือเวลา
+                            </p>
+                          </div>
+                          <p className="text-2xl font-bold text-orange-600">
+                            {daysLeft > 0 ? daysLeft : 0}
+                            <span className="text-sm font-normal ml-1">วัน</span>
+                          </p>
+                        </div>
+
+                        {/* Provider */}
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 col-span-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-blue-700 font-medium mb-1">
+                                ผู้สนับสนุน
+                              </p>
+                              <p className="text-base font-bold text-blue-900">
+                                {scholarship.provider}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-blue-700 font-medium mb-1">
+                                ผู้สมัคร
+                              </p>
+                              <div className="flex items-center space-x-2">
+                                <UserGroupIcon className="h-5 w-5 text-blue-600" />
+                                <p className="text-base font-bold text-blue-900">
+                                  {scholarship.applicants}/
+                                  {scholarship.maxApplicants}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mb-6">
+                        <div className="flex justify-between text-xs text-gray-600 mb-2">
+                          <span>ความคืบหน้า</span>
+                          <span className="font-bold">{Math.round(progress)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 bg-gradient-to-r ${getTypeGradient(
+                              scholarship.type
+                            )}`}
+                            style={{ width: `${Math.min(progress, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href={`/student/scholarships/${scholarship.id}`}
+                          className="flex-1"
+                        >
+                          <Button
+                            variant="outline"
+                            className="w-full font-sarabun group/btn"
+                          >
+                            <EyeIcon className="h-5 w-5 mr-2 group-hover/btn:scale-110 transition-transform" />
+                            ดูรายละเอียด
+                          </Button>
+                        </Link>
+                        {scholarship.status === "open" &&
+                          !scholarship.isApplied && (
                             <Link
-                              href={`/student/scholarships/${scholarship.id}`}
+                              href={`/student/scholarships/${scholarship.id}/apply`}
+                              className="flex-1"
                             >
                               <Button
-                                variant="outline"
-                                size="sm"
-                                className="font-sarabun"
+                                variant="primary"
+                                className={`w-full font-sarabun bg-gradient-to-r ${getTypeGradient(
+                                  scholarship.type
+                                )} hover:shadow-lg transform hover:scale-105 transition-all`}
                               >
-                                <EyeIcon className="h-4 w-4 mr-2" />
-                                ดูรายละเอียด
+                                สมัครเลย
                               </Button>
                             </Link>
-                            {scholarship.status === "open" &&
-                              !scholarship.isApplied && (
-                                <Link
-                                  href={`/student/scholarships/${scholarship.id}/apply`}
-                                >
-                                  <Button
-                                    variant="primary"
-                                    size="sm"
-                                    className="font-sarabun"
-                                  >
-                                    สมัครเลย
-                                  </Button>
-                                </Link>
-                              )}
-                            {scholarship.isApplied && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled
-                                className="font-sarabun"
-                              >
-                                สมัครแล้ว
-                              </Button>
-                            )}
-                            {scholarship.status === "closed" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled
-                                className="font-sarabun"
-                              >
-                                ปิดรับสมัครแล้ว
-                              </Button>
-                            )}
-                          </div>
-                          <button className="p-2 hover:bg-secondary-50 rounded-lg transition-colors">
-                            <HeartIcon
-                              className={`h-5 w-5 ${
-                                scholarship.isFavorite
-                                  ? "text-red-500 fill-current"
-                                  : "text-secondary-400"
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  );
-                })
-              )}
+                          )}
+                        {scholarship.isApplied && (
+                          <Button
+                            variant="outline"
+                            disabled
+                            className="flex-1 font-sarabun"
+                          >
+                            <CheckCircleIcon className="h-5 w-5 mr-2 text-green-600" />
+                            สมัครแล้ว
+                          </Button>
+                        )}
+                        {scholarship.status === "closed" && (
+                          <Button
+                            variant="outline"
+                            disabled
+                            className="flex-1 font-sarabun"
+                          >
+                            ปิดรับสมัครแล้ว
+                          </Button>
+                        )}
+                      </div>
+                    </CardBody>
+                  </Card>
+                );
+              })}
             </div>
+          )}
 
-            {/* Load more button */}
-            {filteredScholarships.length > 0 && (
-              <div className="text-center mt-8">
-                <Button variant="outline" className="font-sarabun">
-                  โหลดเพิ่มเติม
-                </Button>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-8 flex justify-center items-center space-x-2">
+              <Button
+                variant="outline"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >
+                ก่อนหน้า
+              </Button>
+              <div className="flex items-center space-x-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        page === pageNum
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                )}
               </div>
-            )}
-          </div>
+              <Button
+                variant="outline"
+                disabled={page === totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                ถัดไป
+              </Button>
+            </div>
+          )}
         </main>
       </div>
     </div>

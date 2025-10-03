@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { 
+import {
   DocumentIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -16,8 +16,12 @@ import {
   ExclamationTriangleIcon,
   ArrowDownTrayIcon,
   ChatBubbleLeftRightIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  XMarkIcon,
+  PaperAirplaneIcon
 } from '@heroicons/react/24/outline';
+import ToastContainer from '@/components/ui/ToastContainer';
+import { useToast } from '@/hooks/useToast';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -49,12 +53,26 @@ interface DocumentSubmission {
 }
 
 const OfficerDocumentsPage: React.FC = () => {
+  const { toasts, removeToast, success, error, warning, info } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedDocumentType, setSelectedDocumentType] = useState('transcript');
-  const [selectedPriority, setSelectedPriority] = useState('high');
+  const [selectedDocumentType, setSelectedDocumentType] = useState('all');
+  const [selectedPriority, setSelectedPriority] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+
+  // Modal states
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState<DocumentSubmission | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Form states
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [requireResubmission, setRequireResubmission] = useState(false);
+  const [contactMessage, setContactMessage] = useState('');
 
 
   const documentSubmissions: DocumentSubmission[] = [
@@ -342,8 +360,101 @@ const OfficerDocumentsPage: React.FC = () => {
     setSelectedDocuments([]);
   };
 
+  const handleViewDocument = (doc: DocumentSubmission) => {
+    setCurrentDocument(doc);
+    setShowViewModal(true);
+  };
+
+  const handleApprove = (doc: DocumentSubmission) => {
+    setCurrentDocument(doc);
+    setShowApproveModal(true);
+  };
+
+  const handleReject = (doc: DocumentSubmission) => {
+    setCurrentDocument(doc);
+    setRejectionReason('');
+    setRequireResubmission(false);
+    setShowRejectModal(true);
+  };
+
+  const handleContact = (doc: DocumentSubmission) => {
+    setCurrentDocument(doc);
+    setContactMessage('');
+    setShowContactModal(true);
+  };
+
+  const handleDownload = (doc: DocumentSubmission) => {
+    info('กำลังดาวน์โหลด', `กำลังดาวน์โหลดไฟล์ ${doc.filename}`);
+    // Simulate download
+    setTimeout(() => {
+      success('ดาวน์โหลดสำเร็จ', `ดาวน์โหลด ${doc.filename} เรียบร้อยแล้ว`);
+    }, 1500);
+  };
+
+  const confirmApprove = async () => {
+    if (!currentDocument) return;
+
+    setIsProcessing(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      success('อนุมัติสำเร็จ', `อนุมัติเอกสาร ${currentDocument.documentName} แล้ว`);
+      setShowApproveModal(false);
+      setCurrentDocument(null);
+    } catch (err) {
+      error('เกิดข้อผิดพลาด', 'ไม่สามารถอนุมัติเอกสารได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const confirmReject = async () => {
+    if (!currentDocument) return;
+
+    if (!rejectionReason.trim()) {
+      warning('กรุณาระบุเหตุผล', 'กรุณาระบุเหตุผลที่ไม่อนุมัติเอกสาร');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const statusText = requireResubmission ? 'ต้องส่งเอกสารใหม่' : 'ไม่อนุมัติ';
+      success(statusText, `${statusText}เอกสาร ${currentDocument.documentName} แล้ว`);
+      setShowRejectModal(false);
+      setCurrentDocument(null);
+      setRejectionReason('');
+    } catch (err) {
+      error('เกิดข้อผิดพลาด', 'ไม่สามารถดำเนินการได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const sendContactMessage = async () => {
+    if (!currentDocument) return;
+
+    if (!contactMessage.trim()) {
+      warning('กรุณากรอกข้อความ', 'กรุณากรอกข้อความที่ต้องการส่ง');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      success('ส่งข้อความสำเร็จ', `ส่งข้อความถึง ${currentDocument.studentName} แล้ว`);
+      setShowContactModal(false);
+      setCurrentDocument(null);
+      setContactMessage('');
+    } catch (err) {
+      error('เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อความได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 pb-8">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
@@ -681,27 +792,52 @@ const OfficerDocumentsPage: React.FC = () => {
                           {/* Actions */}
                           <div className="flex items-center justify-between border-t border-secondary-200 pt-4">
                             <div className="flex space-x-3">
-                              <Button variant="outline" size="sm" className="font-sarabun">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="font-sarabun"
+                                onClick={() => handleViewDocument(document)}
+                              >
                                 <EyeIcon className="h-4 w-4 mr-2" />
                                 ดูเอกสาร
                               </Button>
-                              <Button variant="outline" size="sm" className="font-sarabun">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="font-sarabun"
+                                onClick={() => handleDownload(document)}
+                              >
                                 <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
                                 ดาวน์โหลด
                               </Button>
                               {document.status === 'pending' && (
                                 <>
-                                  <Button variant="primary" size="sm" className="font-sarabun">
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    className="font-sarabun"
+                                    onClick={() => handleApprove(document)}
+                                  >
                                     <CheckCircleIcon className="h-4 w-4 mr-2" />
                                     อนุมัติ
                                   </Button>
-                                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 font-sarabun">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 font-sarabun"
+                                    onClick={() => handleReject(document)}
+                                  >
                                     <XCircleIcon className="h-4 w-4 mr-2" />
                                     ไม่อนุมัติ
                                   </Button>
                                 </>
                               )}
-                              <Button variant="outline" size="sm" className="font-sarabun">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="font-sarabun"
+                                onClick={() => handleContact(document)}
+                              >
                                 <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
                                 ติดต่อนักศึกษา
                               </Button>
@@ -718,6 +854,267 @@ const OfficerDocumentsPage: React.FC = () => {
               })
             )}
           </div>
+
+      {/* View Document Modal */}
+      {showViewModal && currentDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900 font-sarabun">
+                  {currentDocument.documentName}
+                </h2>
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Document info */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <p className="text-sm text-gray-600 font-sarabun">นักศึกษา</p>
+                  <p className="text-base font-semibold text-gray-900 font-sarabun">
+                    {currentDocument.studentName}
+                  </p>
+                  <p className="text-sm text-gray-600">{currentDocument.studentId}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 font-sarabun">ทุนการศึกษา</p>
+                  <p className="text-base font-semibold text-gray-900 font-sarabun">
+                    {currentDocument.scholarshipName}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 font-sarabun">ประเภทเอกสาร</p>
+                  <p className="text-base font-semibold text-gray-900 font-sarabun">
+                    {getDocumentTypeName(currentDocument.documentType)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 font-sarabun">ขนาดไฟล์</p>
+                  <p className="text-base font-semibold text-gray-900 font-sarabun">
+                    {formatFileSize(currentDocument.fileSize)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Document preview */}
+              <div className="bg-gray-100 rounded-lg p-12 text-center mb-6">
+                <DocumentIcon className="h-24 w-24 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 font-sarabun mb-2">{currentDocument.filename}</p>
+                <p className="text-sm text-gray-500 font-sarabun">
+                  ตัวอย่างเอกสาร (ในระบบจริงจะแสดงเอกสารที่นี่)
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowViewModal(false)}
+                  className="font-sarabun"
+                >
+                  ปิด
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => handleDownload(currentDocument)}
+                  className="font-sarabun"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                  ดาวน์โหลด
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Modal */}
+      {showApproveModal && currentDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 font-sarabun flex items-center">
+                <CheckCircleIcon className="h-6 w-6 text-green-600 mr-2" />
+                ยืนยันการอนุมัติ
+              </h2>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-700 font-sarabun mb-4">
+                คุณต้องการอนุมัติเอกสารนี้ใช่หรือไม่?
+              </p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <p className="font-semibold text-green-900 font-sarabun">
+                  {currentDocument.documentName}
+                </p>
+                <p className="text-sm text-green-700 font-sarabun mt-1">
+                  นักศึกษา: {currentDocument.studentName}
+                </p>
+                <p className="text-sm text-green-700 font-sarabun">
+                  ทุน: {currentDocument.scholarshipName}
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowApproveModal(false)}
+                  disabled={isProcessing}
+                  className="flex-1 font-sarabun"
+                >
+                  ยกเลิก
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={confirmApprove}
+                  disabled={isProcessing}
+                  className="flex-1 bg-green-600 hover:bg-green-700 font-sarabun"
+                >
+                  {isProcessing ? 'กำลังดำเนินการ...' : 'อนุมัติ'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && currentDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 font-sarabun flex items-center">
+                <XCircleIcon className="h-6 w-6 text-red-600 mr-2" />
+                ไม่อนุมัติเอกสาร
+              </h2>
+            </div>
+
+            <div className="p-6">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="font-semibold text-red-900 font-sarabun">
+                  {currentDocument.documentName}
+                </p>
+                <p className="text-sm text-red-700 font-sarabun mt-1">
+                  นักศึกษา: {currentDocument.studentName}
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 font-sarabun mb-2">
+                  เหตุผลที่ไม่อนุมัติ <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 font-sarabun"
+                  placeholder="ระบุเหตุผลที่ไม่อนุมัติเอกสาร เช่น เอกสารไม่ชัดเจน, ข้อมูลไม่ครบถ้วน"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={requireResubmission}
+                    onChange={(e) => setRequireResubmission(e.target.checked)}
+                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700 font-sarabun">
+                    ให้นักศึกษาส่งเอกสารใหม่
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRejectModal(false)}
+                  disabled={isProcessing}
+                  className="flex-1 font-sarabun"
+                >
+                  ยกเลิก
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={confirmReject}
+                  disabled={isProcessing}
+                  className="flex-1 bg-red-600 hover:bg-red-700 font-sarabun"
+                >
+                  {isProcessing ? 'กำลังดำเนินการ...' : 'ยืนยัน'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Student Modal */}
+      {showContactModal && currentDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 font-sarabun flex items-center">
+                <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-600 mr-2" />
+                ติดต่อนักศึกษา
+              </h2>
+            </div>
+
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="font-semibold text-blue-900 font-sarabun">
+                  {currentDocument.studentName}
+                </p>
+                <p className="text-sm text-blue-700 font-sarabun mt-1">
+                  อีเมล: {currentDocument.studentEmail}
+                </p>
+                <p className="text-sm text-blue-700 font-sarabun">
+                  เรื่อง: {currentDocument.documentName}
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 font-sarabun mb-2">
+                  ข้อความ <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  rows={5}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-sarabun"
+                  placeholder="พิมพ์ข้อความที่ต้องการส่งถึงนักศึกษา..."
+                />
+              </div>
+
+              <div className="flex space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowContactModal(false)}
+                  disabled={isProcessing}
+                  className="flex-1 font-sarabun"
+                >
+                  ยกเลิก
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={sendContactMessage}
+                  disabled={isProcessing}
+                  className="flex-1 font-sarabun"
+                >
+                  <PaperAirplaneIcon className="h-4 w-4 mr-2" />
+                  {isProcessing ? 'กำลังส่ง...' : 'ส่งข้อความ'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

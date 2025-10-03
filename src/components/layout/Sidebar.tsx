@@ -72,13 +72,13 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, isOpen, onClose }) => {
         return [
           { name: 'หน้าแรก', href: '/student/dashboard', icon: HomeIcon, description: 'ภาพรวมและสถานะ' },
           { name: 'ทุนการศึกษา', href: '/student/scholarships', icon: AcademicCapIcon, description: 'ทุนที่เปิดรับสมัคร' },
-          { name: 'ใบสมัครของฉัน', href: '/student/applications', icon: DocumentTextIcon, badge: 2, description: 'ใบสมัครทั้งหมด' },
-          { name: 'เอกสาร', href: '/student/documents', icon: DocumentIcon, description: 'เอกสารประกอบ' },
+          { name: 'ใบสมัครของฉัน', href: '/student/applications', icon: DocumentTextIcon, description: 'ใบสมัครทั้งหมด' },
           { name: 'การสัมภาษณ์', href: '/student/interviews', icon: CalendarDaysIcon, description: 'ตารางสัมภาษณ์' },
-          { name: 'ประวัติการได้ทุน', href: '/student/awards', icon: TrophyIcon, description: 'ประวัติรับทุน' },
-          { name: 'ข้อมูลส่วนตัว', href: '/student/profile', icon: UserIcon, description: 'จัดการโปรไฟล์' },
-          { name: 'ข่าวสาร', href: '/news', icon: BellIcon, badge: unreadNewsCount > 0 ? unreadNewsCount : undefined, description: 'ข่าวสารและประกาศ' },
-          { name: 'การแจ้งเตือน', href: '/student/notifications', icon: BellIcon, badge: 3, description: 'ข้อความแจ้งเตือน' }
+          { name: 'ทุนที่ได้รับ', href: '/student/awards', icon: TrophyIcon, description: 'ทุนที่ได้รับอนุมัติ' },
+          { name: 'การจ่ายเงิน', href: '/student/payments', icon: BanknotesIcon, description: 'การจ่ายเงิน/เบิกเงิน' },
+          { name: 'การแจ้งเตือน', href: '/student/notifications', icon: BellIcon, badge: 3, description: 'ข้อความแจ้งเตือน' },
+          { name: 'ข่าวสาร', href: '/news', icon: DocumentIcon, badge: unreadNewsCount > 0 ? unreadNewsCount : undefined, description: 'ข่าวสารและประกาศ' },
+          { name: 'ข้อมูลส่วนตัว', href: '/student/profile', icon: UserIcon, description: 'จัดการโปรไฟล์' }
         ];
       
       case 'officer':
@@ -133,43 +133,50 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, isOpen, onClose }) => {
 
   const getRoleInfo = () => {
     const roleMap = {
-      student: { 
-        title: 'นักศึกษา', 
+      student: {
+        title: 'นักศึกษา',
         subtitle: 'Student Portal',
         color: 'from-blue-600 to-blue-700',
         bgColor: 'bg-blue-50',
         textColor: 'text-blue-700'
       },
-      officer: { 
-        title: 'เจ้าหน้าที่ทุน', 
+      officer: {
+        title: 'เจ้าหน้าที่ทุน',
         subtitle: 'Officer Portal',
         color: 'from-green-600 to-green-700',
         bgColor: 'bg-green-50',
         textColor: 'text-green-700'
       },
-      interviewer: { 
-        title: 'ผู้สัมภาษณ์', 
+      scholarship_officer: {
+        title: 'เจ้าหน้าที่ทุน',
+        subtitle: 'Scholarship Officer',
+        color: 'from-teal-600 to-teal-700',
+        bgColor: 'bg-teal-50',
+        textColor: 'text-teal-700'
+      },
+      interviewer: {
+        title: 'ผู้สัมภาษณ์',
         subtitle: 'Interviewer Portal',
         color: 'from-purple-600 to-purple-700',
         bgColor: 'bg-purple-50',
         textColor: 'text-purple-700'
       },
-      admin: { 
-        title: 'ผู้ดูแลระบบ', 
+      admin: {
+        title: 'ผู้ดูแลระบบ',
         subtitle: 'Admin Portal',
         color: 'from-red-600 to-red-700',
         bgColor: 'bg-red-50',
         textColor: 'text-red-700'
-      },
-      scholarship_officer: { 
-        title: 'เจ้าหน้าที่ทุน', 
-        subtitle: 'Officer Portal',
-        color: 'from-green-600 to-green-700',
-        bgColor: 'bg-green-50',
-        textColor: 'text-green-700'
       }
     };
-    return roleMap[userRole];
+
+    return roleMap[userRole] || {
+      title: 'ผู้ใช้งาน',
+      subtitle: 'User Portal',
+      color: 'from-gray-600 to-gray-700',
+      bgColor: 'bg-gray-50',
+      textColor: 'text-gray-700'
+    };
   };
 
   const roleInfo = getRoleInfo();
